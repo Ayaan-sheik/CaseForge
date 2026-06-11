@@ -36,7 +36,7 @@ export default async function InterviewLandingPage({
     .eq('magic_token', params.token)
     .maybeSingle();
 
-  if (!campaign || campaign.status === 'complete') {
+  if (!campaign || campaign.status === 'complete' || campaign.status === 'processing') {
     return (
       <main className="flex min-h-screen items-center justify-center bg-paper p-6">
         <div className="animate-fade-up max-w-sm text-center">

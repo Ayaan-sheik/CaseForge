@@ -44,6 +44,7 @@ export default function RecordPage({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef(0);
   const durationRef = useRef(0);
+  const audioUrlRef = useRef<string | null>(null);
 
   // Load the campaign's questions
   useEffect(() => {
@@ -136,8 +137,10 @@ export default function RecordPage({
         setElapsed(0);
         return;
       }
+      const url = URL.createObjectURL(blob);
+      audioUrlRef.current = url;
       setAudioBlob(blob);
-      setAudioUrl(URL.createObjectURL(blob));
+      setAudioUrl(url);
       setPhase('reviewing');
     };
 
@@ -155,7 +158,8 @@ export default function RecordPage({
   }, [phase, cleanupAudioGraph, stopRecording]);
 
   function discardTake() {
-    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = null;
     setAudioUrl(null);
     setAudioBlob(null);
     setElapsed(0);
@@ -208,6 +212,7 @@ export default function RecordPage({
       if (timerRef.current) clearInterval(timerRef.current);
       streamRef.current?.getTracks().forEach((track) => track.stop());
       audioContextRef.current?.close().catch(() => {});
+      if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
     };
   }, []);
 

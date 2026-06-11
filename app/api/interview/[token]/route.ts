@@ -19,7 +19,7 @@ export async function GET(
     .eq('magic_token', params.token)
     .maybeSingle();
 
-  if (!campaign || campaign.status === 'complete') {
+  if (!campaign || campaign.status === 'complete' || campaign.status === 'processing') {
     return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
   }
 
@@ -48,7 +48,7 @@ export async function PATCH(
     .eq('magic_token', params.token)
     .maybeSingle();
 
-  if (!campaign || campaign.status === 'complete') {
+  if (!campaign || campaign.status === 'complete' || campaign.status === 'processing') {
     return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
   }
 

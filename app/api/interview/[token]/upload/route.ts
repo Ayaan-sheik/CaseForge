@@ -24,7 +24,7 @@ export async function POST(
     .eq('magic_token', params.token)
     .maybeSingle<Campaign>();
 
-  if (!campaign || campaign.status === 'complete') {
+  if (!campaign || campaign.status === 'complete' || campaign.status === 'processing') {
     return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
   }
 
@@ -150,10 +150,21 @@ export async function POST(
     questions.length > 0 && questions.every((q) => cleanedIds.has(q.id));
 
   if (allDone) {
-    // Fire-and-forget: synthesis runs after the response is returned.
-    synthesizeCaseStudy(campaign.id).catch((err) =>
-      console.error('Synthesis failed:', err)
-    );
+    // Atomic lock: only the request that flips status recording→processing fires synthesis.
+    // Concurrent uploads that reach here simultaneously will get null back and skip it.
+    const { data: locked } = await supabase
+      .from('campaigns')
+      .update({ status: 'processing' })
+      .eq('id', campaign.id)
+      .eq('status', 'recording')
+      .select('id')
+      .maybeSingle();
+
+    if (locked) {
+      synthesizeCaseStudy(campaign.id).catch((err) =>
+        console.error('Synthesis failed:', err)
+      );
+    }
   }
 
   return NextResponse.json({ success: true });
