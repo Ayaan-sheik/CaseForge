@@ -54,11 +54,17 @@ export async function POST(
       ? Math.round(durationRaw)
       : null;
 
+  // Buffer the audio once so both Supabase and Groq can read from it.
+  // A File's underlying ReadableStream can only be consumed once — if we pass
+  // the raw File to Supabase first, the stream is exhausted and Groq would
+  // receive an empty payload, producing an empty transcript in production.
+  const audioBuffer = await audio.arrayBuffer();
+
   // ── 1. Upload audio to Supabase Storage ────────────────────────────────────
   const audioPath = `${campaign.id}/${questionId}.webm`;
   const { error: storageError } = await supabase.storage
     .from('audio')
-    .upload(audioPath, audio, {
+    .upload(audioPath, audioBuffer, {
       contentType: audio.type || 'audio/webm',
       upsert: true,
     });
@@ -103,7 +109,12 @@ export async function POST(
   // ── 3. Transcribe with Groq Whisper ────────────────────────────────────────
   let rawTranscript: string;
   try {
-    rawTranscript = await transcribeAudio(audio);
+    const audioForGroq = new File(
+      [audioBuffer],
+      audio.name || 'recording.webm',
+      { type: audio.type || 'audio/webm' }
+    );
+    rawTranscript = await transcribeAudio(audioForGroq);
   } catch (err) {
     console.error('Transcription failed:', err);
     await supabase
