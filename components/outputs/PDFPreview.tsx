@@ -1,0 +1,10 @@
+/** Embedded preview of the generated case study PDF. */
+export function PDFPreview({ pdfUrl }: { pdfUrl: string }) {
+  return (
+    <iframe
+      src={pdfUrl}
+      title="Case study PDF preview"
+      className="h-[640px] w-full rounded-xl border border-slate-200 bg-white shadow-sm"
+    />
+  );
+}
