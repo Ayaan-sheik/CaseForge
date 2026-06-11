@@ -39,7 +39,7 @@ export function RetryProcessingButton({ campaignId }: { campaignId: string }) {
         <RefreshCw className={loading ? 'h-4 w-4 animate-spin' : 'h-4 w-4'} />
         {loading ? 'Processing…' : 'Retry Processing'}
       </Button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm text-accent">{error}</p>}
     </div>
   );
 }

@@ -58,40 +58,38 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-5 py-12">
-      <div
-        aria-hidden="true"
-        className="animate-drift pointer-events-none absolute left-1/2 top-[-10%] h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/40 blur-[110px]"
-      />
-
-      <div className="relative w-full max-w-sm">
+    <main className="flex min-h-screen items-center justify-center bg-paper px-5 py-12">
+      <div className="w-full max-w-sm">
         <div className="animate-fade-up flex flex-col items-center text-center">
           <Link href="/">
             <LogoMark className="h-11 w-11 rounded-[14px]" animated />
           </Link>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight">
+          <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight">
             Create your account
           </h1>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Start turning client wins into case studies
+          <p className="mt-1.5 font-editorial text-base italic text-ink-muted">
+            Your client wins, told properly
           </p>
         </div>
 
         {needsConfirmation ? (
-          <p
-            className="animate-fade-up mt-10 rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center text-sm leading-relaxed text-slate-600"
+          <div
+            className="animate-scale-in mt-10 rounded-[20px] border border-line bg-surface p-6 text-center"
             style={{ animationDelay: '120ms' }}
           >
-            Check your inbox — we sent a confirmation link to{' '}
-            <strong>{email}</strong>. After confirming, you can{' '}
-            <Link
-              href="/login"
-              className="font-medium text-slate-900 underline-offset-4 hover:underline"
-            >
-              log in
-            </Link>
-            .
-          </p>
+            <p className="text-sm leading-relaxed text-ink-secondary">
+              Check your inbox — we sent a confirmation link to{' '}
+              <strong className="text-ink">{email}</strong>. After confirming,
+              you can{' '}
+              <Link
+                href="/login"
+                className="font-medium text-ink underline-offset-4 hover:underline"
+              >
+                log in
+              </Link>
+              .
+            </p>
+          </div>
         ) : (
           <>
             <form
@@ -144,20 +142,20 @@ export default function SignupPage() {
                   placeholder="At least 8 characters"
                 />
               </div>
-              {error && <p className="text-sm text-red-600">{error}</p>}
+              {error && <p className="text-sm text-accent">{error}</p>}
               <Button type="submit" className="h-11 w-full" disabled={loading}>
                 {loading ? 'Creating account…' : 'Sign up'}
               </Button>
             </form>
 
             <p
-              className="animate-fade-up mt-8 text-center text-sm text-slate-500"
+              className="animate-fade-up mt-8 text-center text-sm text-ink-secondary"
               style={{ animationDelay: '200ms' }}
             >
               Already have an account?{' '}
               <Link
                 href="/login"
-                className="font-medium text-slate-900 underline-offset-4 hover:underline"
+                className="font-medium text-ink underline-offset-4 hover:underline"
               >
                 Log in
               </Link>

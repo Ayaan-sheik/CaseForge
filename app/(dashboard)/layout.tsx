@@ -23,12 +23,12 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50/70">
-      <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-white/70 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-5xl items-center justify-between px-5 sm:px-8">
+    <div className="min-h-screen bg-paper">
+      <header className="sticky top-0 z-40 border-b border-line bg-paper/85 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-page items-center justify-between px-5 sm:px-8">
           <Logo href="/dashboard" />
           <div className="flex items-center gap-3">
-            <span className="hidden text-sm text-slate-400 sm:inline">
+            <span className="hidden font-mono text-xs text-ink-muted sm:inline">
               {user.email}
             </span>
             <form action={signOut}>
@@ -39,7 +39,7 @@ export default async function DashboardLayout({
           </div>
         </div>
       </header>
-      <main className="animate-fade-up mx-auto max-w-5xl px-5 py-10 sm:px-8">
+      <main className="animate-fade-up mx-auto max-w-page px-5 py-10 sm:px-8">
         {children}
       </main>
     </div>

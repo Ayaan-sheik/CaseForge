@@ -38,22 +38,17 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-white px-5">
-      <div
-        aria-hidden="true"
-        className="animate-drift pointer-events-none absolute left-1/2 top-[-10%] h-[400px] w-[600px] -translate-x-1/2 rounded-full bg-indigo-100/40 blur-[110px]"
-      />
-
-      <div className="relative w-full max-w-sm">
+    <main className="flex min-h-screen items-center justify-center bg-paper px-5">
+      <div className="w-full max-w-sm">
         <div className="animate-fade-up flex flex-col items-center text-center">
           <Link href="/">
             <LogoMark className="h-11 w-11 rounded-[14px]" animated />
           </Link>
-          <h1 className="mt-6 text-2xl font-semibold tracking-tight">
+          <h1 className="mt-6 font-display text-2xl font-semibold tracking-tight">
             Welcome back
           </h1>
-          <p className="mt-1.5 text-sm text-slate-500">
-            Log in to manage your campaigns
+          <p className="mt-1.5 font-editorial text-base italic text-ink-muted">
+            Pick up where the story left off
           </p>
         </div>
 
@@ -86,20 +81,20 @@ export default function LoginPage() {
               placeholder="••••••••"
             />
           </div>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-accent">{error}</p>}
           <Button type="submit" className="h-11 w-full" disabled={loading}>
             {loading ? 'Logging in…' : 'Log in'}
           </Button>
         </form>
 
         <p
-          className="animate-fade-up mt-8 text-center text-sm text-slate-500"
+          className="animate-fade-up mt-8 text-center text-sm text-ink-secondary"
           style={{ animationDelay: '200ms' }}
         >
           No account yet?{' '}
           <Link
             href="/signup"
-            className="font-medium text-slate-900 underline-offset-4 hover:underline"
+            className="font-medium text-ink underline-offset-4 hover:underline"
           >
             Sign up
           </Link>

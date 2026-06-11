@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QuestionCard } from '@/components/interview/QuestionCard';
 import { RecordButton } from '@/components/interview/RecordButton';
@@ -213,21 +213,28 @@ export default function RecordPage({
 
   if (phase === 'loading') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-900">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      <main className="flex min-h-screen items-center justify-center bg-ink">
+        <div className="flex h-10 items-center gap-1.5" aria-hidden="true">
+          {[14, 26, 18, 32, 22].map((h, i) => (
+            <span
+              key={i}
+              className="wave-bar w-1 rounded-full bg-paper/60"
+              style={{ height: `${h}px`, animationDelay: `${i * 0.14}s` }}
+            />
+          ))}
+        </div>
       </main>
     );
   }
 
   if (phase === 'invalid') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-900 p-6">
-        <div className="max-w-sm text-center">
-          <p className="text-4xl">🔗</p>
-          <h1 className="mt-4 text-xl font-semibold text-white">
+      <main className="flex min-h-screen items-center justify-center bg-ink p-6">
+        <div className="animate-fade-up max-w-sm text-center">
+          <h1 className="font-display text-xl font-semibold text-paper">
             This link isn&apos;t active anymore
           </h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <p className="mt-2 text-sm text-paper/60">
             Please contact the person who sent it to you.
           </p>
         </div>
@@ -239,7 +246,7 @@ export default function RecordPage({
   const showWarning = phase === 'recording' && elapsed >= WARN_SECONDS;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between bg-slate-900 px-6 py-10">
+    <main className="flex min-h-screen flex-col items-center justify-between bg-ink px-6 py-10">
       <QuestionCard
         question={question.text}
         index={index}
@@ -247,23 +254,29 @@ export default function RecordPage({
       />
 
       <div className="flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 py-8">
+        {phase === 'idle' && (
+          <p className="animate-fade-in font-editorial text-lg italic text-paper/40">
+            Take a breath. Say it like you&apos;d say it to a colleague.
+          </p>
+        )}
+
         {phase === 'recording' && (
           <>
             <WaveformVisualizer analyser={analyser} active />
-            <p className="font-mono text-3xl font-semibold text-white">
+            <p className="font-mono text-3xl font-semibold tabular-nums text-paper">
               {formatDuration(elapsed)}
             </p>
             {showWarning && (
-              <p className="text-sm font-medium text-amber-400">
-                ⏰ 30 seconds left — recording stops at 3:00
+              <p className="animate-fade-in font-mono text-xs uppercase tracking-[0.14em] text-accent">
+                30 seconds left — recording stops at 3:00
               </p>
             )}
           </>
         )}
 
         {phase === 'reviewing' && audioUrl && (
-          <div className="flex w-full flex-col items-center gap-6">
-            <p className="text-sm text-slate-400">
+          <div className="animate-fade-up flex w-full flex-col items-center gap-6">
+            <p className="font-editorial text-lg italic text-paper/60">
               Have a listen — happy with it?
             </p>
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -272,28 +285,42 @@ export default function RecordPage({
               <Button
                 variant="outline"
                 size="lg"
-                className="flex-1 border-slate-600 bg-transparent text-white hover:bg-slate-800 hover:text-white"
+                className="flex-1 border-paper/25 bg-transparent text-paper hover:border-paper/50 hover:bg-paper/10 hover:text-paper"
                 onClick={handleReRecord}
               >
                 <RotateCcw className="h-4 w-4" />
                 Re-record
               </Button>
-              <Button size="lg" className="flex-1" onClick={handleSubmit}>
-                Submit Answer →
+              <Button
+                size="lg"
+                className="flex-1 bg-paper text-ink hover:bg-white"
+                onClick={handleSubmit}
+              >
+                Submit answer →
               </Button>
             </div>
           </div>
         )}
 
         {phase === 'uploading' && (
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-10 w-10 animate-spin text-indigo-400" />
-            <p className="text-sm text-slate-300">Uploading your answer…</p>
+          <div className="animate-fade-in flex flex-col items-center gap-5">
+            <div className="flex h-10 items-center gap-1.5" aria-hidden="true">
+              {[14, 26, 18, 32, 22].map((h, i) => (
+                <span
+                  key={i}
+                  className="wave-bar w-1 rounded-full bg-accent"
+                  style={{ height: `${h}px`, animationDelay: `${i * 0.14}s` }}
+                />
+              ))}
+            </div>
+            <p className="font-mono text-xs uppercase tracking-[0.14em] text-paper/60">
+              Saving your answer…
+            </p>
           </div>
         )}
 
         {error && (
-          <p className="max-w-sm text-center text-sm text-red-400">{error}</p>
+          <p className="max-w-sm text-center text-sm text-accent">{error}</p>
         )}
       </div>
 

@@ -7,35 +7,35 @@ const STATUS_STYLES: Record<
 > = {
   draft: {
     label: 'Draft',
-    className: 'bg-slate-50 text-slate-600 ring-slate-500/15',
-    dot: 'bg-slate-400',
+    className: 'bg-subtle text-ink-secondary ring-line',
+    dot: 'bg-ink-muted',
   },
   sent: {
     label: 'Sent',
-    className: 'bg-blue-50 text-blue-700 ring-blue-600/15',
-    dot: 'bg-blue-500',
+    className: 'bg-subtle text-ink-secondary ring-line',
+    dot: 'bg-ink',
   },
   recording: {
     label: 'Recording',
-    className: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-    dot: 'bg-amber-500',
+    className: 'bg-accent-soft text-accent ring-accent/20',
+    dot: 'bg-accent',
     pulse: true,
   },
   processing: {
     label: 'Processing',
-    className: 'bg-orange-50 text-orange-700 ring-orange-600/20',
-    dot: 'bg-orange-500',
+    className: 'bg-accent-soft text-accent ring-accent/20',
+    dot: 'bg-accent',
     pulse: true,
   },
   complete: {
     label: 'Complete',
-    className: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-    dot: 'bg-emerald-500',
+    className: 'bg-success/10 text-[#2E8B61] ring-success/30',
+    dot: 'bg-success',
   },
   error: {
-    label: 'Error',
-    className: 'bg-red-50 text-red-700 ring-red-600/20',
-    dot: 'bg-red-500',
+    label: 'Needs attention',
+    className: 'bg-accent-soft text-accent ring-accent/30',
+    dot: 'bg-accent',
   },
 };
 
@@ -44,7 +44,7 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset',
+        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-mono text-[11px] font-medium uppercase tracking-[0.08em] ring-1 ring-inset',
         config.className
       )}
     >
@@ -52,7 +52,7 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
         {config.pulse && (
           <span
             className={cn(
-              'absolute inline-flex h-full w-full animate-ping rounded-full opacity-60',
+              'animate-ring absolute inline-flex h-full w-full rounded-full',
               config.dot
             )}
           />

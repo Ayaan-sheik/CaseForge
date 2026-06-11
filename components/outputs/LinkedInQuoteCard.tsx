@@ -8,12 +8,20 @@ export function LinkedInQuoteCard({ quote }: { quote: LinkedInQuote }) {
   const linkedInText = `"${quote.quote}"\n\n— ${quote.context}`;
 
   return (
-    <Card>
+    <Card className="hover-lift">
       <CardContent className="flex h-full flex-col gap-4 p-6">
-        <p className="flex-1 text-lg font-medium leading-relaxed text-slate-900">
-          &ldquo;{quote.quote}&rdquo;
+        <span
+          aria-hidden="true"
+          className="font-editorial text-4xl italic leading-none text-accent"
+        >
+          “
+        </span>
+        <p className="-mt-3 flex-1 font-editorial text-lg italic leading-relaxed text-ink">
+          {quote.quote}
         </p>
-        <p className="text-sm text-slate-500">— {quote.context}</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-muted">
+          — {quote.context}
+        </p>
         <CopyButton value={linkedInText} variant="outline" size="sm">
           Copy
         </CopyButton>

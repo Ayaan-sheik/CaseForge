@@ -72,12 +72,12 @@ export function OutputTabs({ campaignId, output, appUrl }: OutputTabsProps) {
             />
             {regenerating ? 'Regenerating…' : 'Regenerate PDF'}
           </Button>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-accent">{error}</p>}
         </div>
         {output.pdf_url ? (
           <PDFPreview pdfUrl={output.pdf_url} />
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-ink-secondary">
             No PDF yet — try regenerating.
           </p>
         )}
@@ -98,13 +98,13 @@ export function OutputTabs({ campaignId, output, appUrl }: OutputTabsProps) {
         <iframe
           src={publicLink}
           title="Public case study preview"
-          className="h-[640px] w-full rounded-xl border border-slate-200 bg-white shadow-sm"
+          className="h-[640px] w-full rounded-[20px] border border-line bg-surface shadow-sm"
         />
       </TabsContent>
 
       <TabsContent value="linkedin" className="space-y-4">
-        <p className="text-sm text-slate-500">
-          💡 Tip: Post one per week across 3 weeks for maximum reach
+        <p className="font-editorial text-base italic text-ink-muted">
+          Post one per week — three weeks of proof from a single interview.
         </p>
         <div className="grid gap-4 md:grid-cols-3">
           {quotes.map((quote, index) => (

@@ -1,21 +1,48 @@
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
+import {
+  Bricolage_Grotesque,
+  Hanken_Grotesk,
+  Newsreader,
+  Spline_Sans_Mono,
+} from 'next/font/google';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
+const display = Bricolage_Grotesque({
+  subsets: ['latin'],
+  variable: '--font-display',
+});
+
+const body = Hanken_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-body',
+});
+
+const editorial = Newsreader({
+  subsets: ['latin'],
+  style: ['italic'],
+  variable: '--font-editorial',
+});
+
+const mono = Spline_Sans_Mono({
+  subsets: ['latin'],
+  variable: '--font-mono',
+});
 
 export const metadata: Metadata = {
-  title: 'CaseForge — Async Audio Case Studies',
+  title: 'CaseForge — Case studies, in your client’s own voice',
   description:
-    'Send a magic link. Your client answers 3 voice questions in 90 seconds. Get a PDF case study, a public web page, and LinkedIn quotes.',
+    'Send one link. Your client answers three questions out loud — 90 seconds, no call. You get a finished case study: PDF, public page, and LinkedIn quotes.',
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen bg-slate-50 font-sans text-slate-900">
+    <html
+      lang="en"
+      className={`${display.variable} ${body.variable} ${editorial.variable} ${mono.variable}`}
+    >
+      <body className="min-h-screen bg-paper font-sans text-ink">
         {children}
       </body>
     </html>

@@ -45,7 +45,7 @@ export function WaveformVisualizer({
         const x = i * barWidth + barWidth * 0.2;
         const y = (canvas.height - barHeight) / 2;
 
-        ctx.fillStyle = '#818cf8';
+        ctx.fillStyle = '#EF3B2D';
         ctx.beginPath();
         ctx.roundRect(x, y, barWidth * 0.6, barHeight, 3);
         ctx.fill();

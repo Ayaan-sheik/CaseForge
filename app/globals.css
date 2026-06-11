@@ -10,11 +10,15 @@
   body {
     @apply antialiased;
     text-rendering: optimizeLegibility;
-    font-feature-settings: 'cv11', 'ss01';
   }
 
   ::selection {
-    @apply bg-indigo-600/90 text-white;
+    @apply bg-ink text-paper;
+  }
+
+  :focus-visible {
+    outline: 2px solid #191510;
+    outline-offset: 2px;
   }
 }
 
@@ -40,8 +44,8 @@
     opacity: 0;
     transform: translateY(24px);
     transition:
-      opacity 0.8s cubic-bezier(0.21, 0.47, 0.32, 0.98),
-      transform 0.8s cubic-bezier(0.21, 0.47, 0.32, 0.98);
+      opacity 0.7s cubic-bezier(0.21, 0.47, 0.32, 0.98),
+      transform 0.7s cubic-bezier(0.21, 0.47, 0.32, 0.98);
   }
 
   .reveal.is-visible {
@@ -49,26 +53,38 @@
     transform: translateY(0);
   }
 
-  /* Soft hover lift for cards */
+  /* Soft hover lift — cards as paper picked up off a desk */
   .hover-lift {
     transition:
-      transform 0.3s cubic-bezier(0.21, 0.47, 0.32, 0.98),
-      box-shadow 0.3s cubic-bezier(0.21, 0.47, 0.32, 0.98),
-      border-color 0.3s ease;
+      transform 0.25s cubic-bezier(0.21, 0.47, 0.32, 0.98),
+      box-shadow 0.25s cubic-bezier(0.21, 0.47, 0.32, 0.98),
+      border-color 0.25s ease;
   }
 
   .hover-lift:hover {
     transform: translateY(-2px);
     box-shadow:
-      0 1px 2px rgb(0 0 0 / 0.04),
-      0 12px 32px -12px rgb(0 0 0 / 0.12);
+      0 1px 2px rgb(25 21 16 / 0.03),
+      0 12px 28px -12px rgb(25 21 16 / 0.12);
+  }
+
+  /* Typing caret for transcript simulations */
+  .typing-caret::after {
+    content: '';
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    background: #ef3b2d;
+    animation: caret-blink 0.9s steps(2, start) infinite;
   }
 }
 
 @keyframes fade-up {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(18px);
   }
   to {
     opacity: 1;
@@ -88,7 +104,7 @@
 @keyframes scale-in {
   from {
     opacity: 0;
-    transform: scale(0.96);
+    transform: scale(0.97);
   }
   to {
     opacity: 1;
@@ -96,7 +112,13 @@
   }
 }
 
-/* Ambient waveform bars (hero + brand mark) */
+@keyframes caret-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* Ambient waveform bars (brand mark, recording states, demos) */
 @keyframes wave {
   0%,
   100% {
@@ -112,19 +134,63 @@
   animation: wave 1.4s ease-in-out infinite;
 }
 
-/* Slow ambient glow drift on the landing hero */
-@keyframes drift {
+/* Slow, steady pulse for "live" indicators */
+@keyframes soft-pulse {
   0%,
   100% {
-    transform: translate(0, 0) scale(1);
+    opacity: 1;
   }
   50% {
-    transform: translate(4%, -6%) scale(1.08);
+    opacity: 0.35;
   }
 }
 
-.animate-drift {
-  animation: drift 14s ease-in-out infinite;
+.animate-soft-pulse {
+  animation: soft-pulse 2s ease-in-out infinite;
+}
+
+/* Expanding ring for live/recording dots */
+@keyframes ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.animate-ring {
+  animation: ring 1.8s cubic-bezier(0.2, 0.6, 0.4, 1) infinite;
+}
+
+/* Check-mark stroke draw (completion payoffs) */
+@keyframes draw-check {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.draw-check {
+  stroke-dasharray: 48;
+  stroke-dashoffset: 48;
+  animation: draw-check 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.25s forwards;
+}
+
+/* Progress bar fill used in the hero demo + pipelines */
+@keyframes fill-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-fill-x {
+  transform-origin: left center;
+  animation: fill-x linear forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -142,8 +208,25 @@
   }
 
   .wave-bar,
-  .animate-drift {
+  .animate-soft-pulse,
+  .animate-ring,
+  .animate-fill-x {
     animation: none;
+  }
+
+  .draw-check {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+
+  .typing-caret::after {
+    animation: none;
+  }
+
+  .hover-lift,
+  .hover-lift:hover {
+    transition: none;
+    transform: none;
   }
 
   html {

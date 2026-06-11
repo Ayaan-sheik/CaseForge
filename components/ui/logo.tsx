@@ -12,7 +12,7 @@ export function LogoMark({
   return (
     <span
       className={cn(
-        'flex h-8 w-8 items-center justify-center gap-[3px] rounded-[10px] bg-slate-900',
+        'flex h-8 w-8 items-center justify-center gap-[3px] rounded-[10px] bg-ink',
         className
       )}
       aria-hidden="true"
@@ -20,7 +20,11 @@ export function LogoMark({
       {[0, 1, 2].map((i) => (
         <span
           key={i}
-          className={cn('w-[3px] rounded-full bg-white', animated && 'wave-bar')}
+          className={cn(
+            'w-[3px] rounded-full',
+            i === 1 ? 'bg-accent' : 'bg-paper',
+            animated && 'wave-bar'
+          )}
           style={{
             height: i === 1 ? '14px' : '8px',
             animationDelay: animated ? `${i * 0.18}s` : undefined,
@@ -44,7 +48,7 @@ export function Logo({
     <Link
       href={href}
       className={cn(
-        'flex items-center gap-2.5 text-[17px] font-semibold tracking-tight text-slate-900',
+        'flex items-center gap-2.5 font-display text-[17px] font-semibold tracking-tight text-ink',
         className
       )}
     >

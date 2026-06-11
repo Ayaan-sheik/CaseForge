@@ -4,7 +4,7 @@ export function PDFPreview({ pdfUrl }: { pdfUrl: string }) {
     <iframe
       src={pdfUrl}
       title="Case study PDF preview"
-      className="h-[640px] w-full rounded-xl border border-slate-200 bg-white shadow-sm"
+      className="h-[640px] w-full rounded-[20px] border border-line bg-surface shadow-sm"
     />
   );
 }

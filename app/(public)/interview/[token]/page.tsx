@@ -1,8 +1,27 @@
 import Link from 'next/link';
-import { Mic, Smartphone, Timer } from 'lucide-react';
+import { ArrowRight, Mic, Smartphone, Timer } from 'lucide-react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
+import { LogoMark } from '@/components/ui/logo';
 import { MarkOpened } from '@/components/interview/MarkOpened';
+
+const DETAILS = [
+  {
+    icon: Timer,
+    title: 'About 90 seconds',
+    body: 'Three quick questions, answered with your voice. No typing.',
+  },
+  {
+    icon: Smartphone,
+    title: 'Nothing to install',
+    body: 'Works right here in your browser, on any phone or laptop.',
+  },
+  {
+    icon: Mic,
+    title: 'Just talk naturally',
+    body: 'Hold the button, say it like you’d say it to a colleague, release.',
+  },
+];
 
 export default async function InterviewLandingPage({
   params,
@@ -19,13 +38,13 @@ export default async function InterviewLandingPage({
 
   if (!campaign || campaign.status === 'complete') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-        <div className="max-w-sm text-center">
-          <p className="text-4xl">🔗</p>
-          <h1 className="mt-4 text-xl font-semibold text-slate-900">
+      <main className="flex min-h-screen items-center justify-center bg-paper p-6">
+        <div className="animate-fade-up max-w-sm text-center">
+          <LogoMark className="mx-auto h-10 w-10 rounded-xl" />
+          <h1 className="mt-6 font-display text-xl font-semibold text-ink">
             This link isn&apos;t active anymore
           </h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm leading-relaxed text-ink-secondary">
             It may have expired or already been completed. Please reach out to
             the person who sent it to you for a fresh link.
           </p>
@@ -44,48 +63,63 @@ export default async function InterviewLandingPage({
     profile?.company_name || profile?.full_name || 'your partner';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
+    <main className="flex min-h-screen items-center justify-center bg-paper p-6">
       <MarkOpened token={params.token} />
-      <div className="w-full max-w-md text-center">
-        <p className="text-sm font-semibold uppercase tracking-wide text-indigo-600">
-          CaseForge
-        </p>
-        <h1 className="mt-4 text-3xl font-bold text-slate-900">
-          Hi {campaign.client_name}! 👋
-        </h1>
-        <p className="mt-4 text-base leading-relaxed text-slate-600">
-          You&apos;ve been asked to share your experience working with{' '}
-          <strong>{creatorCompany}</strong>.
-        </p>
-
-        <div className="mt-8 space-y-4 rounded-xl border border-slate-200 bg-white p-6 text-left shadow-sm">
-          <div className="flex items-start gap-3">
-            <Timer className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
-            <p className="text-sm text-slate-600">
-              This takes about <strong>90 seconds</strong>. You&apos;ll answer
-              3 quick questions using your voice — no typing needed.
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <Smartphone className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
-            <p className="text-sm text-slate-600">
-              No app to download. Works right in your browser.
-            </p>
-          </div>
-          <div className="flex items-start gap-3">
-            <Mic className="mt-0.5 h-5 w-5 shrink-0 text-indigo-600" />
-            <p className="text-sm text-slate-600">
-              Just hold the button, talk naturally, and release when
-              you&apos;re done.
-            </p>
-          </div>
+      <div className="w-full max-w-md">
+        <div className="animate-fade-up text-center">
+          <LogoMark className="mx-auto h-10 w-10 rounded-xl" animated />
+          <p className="mt-6 font-mono text-xs uppercase tracking-[0.18em] text-ink-muted">
+            A request from {creatorCompany}
+          </p>
+          <h1 className="mt-4 text-balance font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
+            Hi {campaign.client_name} —{' '}
+            <span className="font-editorial italic text-accent">
+              tell it in your own words.
+            </span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-[46ch] text-pretty text-base leading-relaxed text-ink-secondary">
+            {creatorCompany} would love to capture your experience working
+            together. You talk, we&apos;ll do all the writing.
+          </p>
         </div>
 
-        <Link href={`/interview/${params.token}/record`} className="mt-8 block">
-          <Button size="lg" className="w-full">
-            Start Recording →
-          </Button>
-        </Link>
+        <div
+          className="animate-fade-up mt-9 space-y-3"
+          style={{ animationDelay: '150ms' }}
+        >
+          {DETAILS.map((item, i) => (
+            <div
+              key={item.title}
+              className="animate-fade-up flex items-start gap-4 rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(25_21_16/0.03)]"
+              style={{ animationDelay: `${200 + i * 110}ms` }}
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft">
+                <item.icon className="h-4 w-4 text-accent" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-ink">{item.title}</p>
+                <p className="mt-0.5 text-sm leading-relaxed text-ink-secondary">
+                  {item.body}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="animate-fade-up mt-8"
+          style={{ animationDelay: '560ms' }}
+        >
+          <Link href={`/interview/${params.token}/record`} className="block">
+            <Button size="lg" className="w-full">
+              Start recording
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+          <p className="mt-4 text-center font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
+            Powered by CaseForge
+          </p>
+        </div>
       </div>
     </main>
   );
