@@ -3,7 +3,8 @@ import Groq from 'groq-sdk';
 export const GROQ_MODEL =
   process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
 
-const GROQ_WHISPER_MODEL = 'whisper-large-v3';
+const GROQ_WHISPER_MODEL =
+  process.env.GROQ_WHISPER_MODEL ?? 'whisper-large-v3';
 
 let client: Groq | null = null;
 

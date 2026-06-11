@@ -48,6 +48,16 @@ export async function POST(
     return NextResponse.json({ error: 'Unknown questionId' }, { status: 400 });
   }
 
+  // Groq Whisper rejects uploads over 25MB (free tier) — fail fast with a
+  // clear message instead of erroring mid-pipeline after storing the audio.
+  const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
+  if (audio.size === 0 || audio.size > MAX_AUDIO_BYTES) {
+    return NextResponse.json(
+      { error: 'Audio file is empty or too large (max 25MB)' },
+      { status: 413 }
+    );
+  }
+
   const durationRaw = Number(formData.get('duration'));
   const duration =
     Number.isFinite(durationRaw) && durationRaw > 0
@@ -117,11 +127,14 @@ export async function POST(
     rawTranscript = await transcribeAudio(audioForGroq);
   } catch (err) {
     console.error('Transcription failed:', err);
+    // Surface the underlying provider error (e.g. "model blocked at project
+    // level", rate limit) so the creator can see why instead of a generic retry.
+    const detail = err instanceof Error ? err.message : 'Unknown error';
     await supabase
       .from('campaigns')
       .update({
         status: 'error',
-        error_message: 'Transcription failed — please retry.',
+        error_message: `Transcription failed: ${detail}`,
       })
       .eq('id', campaign.id);
     return NextResponse.json(
