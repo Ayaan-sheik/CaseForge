@@ -9,10 +9,9 @@ CaseForge lets B2B founders and consultants send a magic link to their clients. 
 ## Stack
 
 - **Next.js 14** (App Router, TypeScript)
-- **Supabase** — Postgres database + Auth
-- **Vercel Blob** — audio file and PDF storage
-- **AssemblyAI** — audio transcription
-- **Anthropic Claude** — question generation + synthesis
+- **Supabase** — Postgres database + Auth + Storage (audio files, PDFs)
+- **Groq Whisper** (`whisper-large-v3`) — audio transcription
+- **Groq Llama** (`llama-3.3-70b-versatile`) — question generation, transcript cleaning + synthesis
 - **Resend** — transactional email
 - **Tailwind CSS + shadcn/ui** — styling
 
@@ -43,41 +42,23 @@ Fill in all values in `.env.local`. See `.env.example` for where to find each ke
 3. Run the SQL — this creates all tables, policies, triggers, and indexes
 4. Copy your project URL, anon key, and service role key into `.env.local`
 
-### 4. Vercel Blob setup
+### 4. Supabase Storage buckets
 
-Option A (recommended): Deploy to Vercel first, then create a Blob store in the Vercel dashboard and link it to your project. The `BLOB_READ_WRITE_TOKEN` will be auto-injected.
+In the Supabase dashboard → **Storage**, create two **public** buckets: `audio` and `pdfs`.
 
-Option B (local dev): Create a Blob store via Vercel CLI:
-```bash
-npx vercel link
-npx vercel env pull
-```
+### 5. Groq setup
 
-### 5. Run locally
+Create an API key at [console.groq.com](https://console.groq.com) and make sure the
+Whisper speech-to-text models are **enabled for your project** at
+Settings → Project → Limits — if they are blocked, every transcription fails with a 403.
+
+### 6. Run locally
 
 ```bash
 npm run dev
 ```
 
 App runs at `http://localhost:3000`
-
----
-
-## Webhook Setup (AssemblyAI)
-
-AssemblyAI needs to POST transcription results to your server. In local development, expose your localhost:
-
-```bash
-# Option 1: localtunnel
-npx localtunnel --port 3000
-
-# Option 2: ngrok
-ngrok http 3000
-```
-
-Update `NEXT_PUBLIC_APP_URL` in `.env.local` to the tunnel URL (e.g. `https://abc123.loca.lt`).
-
-In production on Vercel, the webhook URL is automatically `https://your-app.vercel.app/api/webhooks/assemblyai`.
 
 ---
 
@@ -98,8 +79,7 @@ components/
 
 lib/
   supabase/        — Client, server, and middleware helpers
-  ai/              — Claude prompts (question gen + synthesis)
-  assemblyai/      — Transcription submission + webhook processing
+  ai/              — Groq client (Whisper transcription, question gen, cleaning, synthesis)
   email/           — Resend templates and send helpers
   pdf/             — PDF generation utility
   utils/           — Slug generation, formatting helpers

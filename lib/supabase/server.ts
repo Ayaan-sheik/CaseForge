@@ -36,7 +36,7 @@ export function createClient() {
 
 /**
  * Service-role client. Bypasses RLS — server-side only. Used by the public
- * interview flow, the AssemblyAI webhook, and synthesis.
+ * interview flow and synthesis.
  */
 export function createAdminClient() {
   return createSupabaseClient(
