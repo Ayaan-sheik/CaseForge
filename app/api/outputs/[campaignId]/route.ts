@@ -4,6 +4,10 @@ import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
 import { generateAndUploadPDF } from '@/lib/pdf/generatePDF';
 import type { Output } from '@/lib/types';
 
+// The synthesize action awaits the full pipeline (LLM + PDF render + upload
+// + email), which exceeds Vercel's default function timeout.
+export const maxDuration = 60;
+
 async function requireOwnedCampaign(campaignId: string) {
   const supabase = createClient();
   const {

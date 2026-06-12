@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-/** "Retry Processing" — re-triggers synthesis for an errored campaign. */
+/** "Retry Processing" — re-triggers synthesis for an errored or stuck campaign. */
 export function RetryProcessingButton({ campaignId }: { campaignId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);

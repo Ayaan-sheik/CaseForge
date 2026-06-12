@@ -93,6 +93,21 @@ export default async function CampaignPage({
         </Card>
       )}
 
+      {campaign.status === 'processing' && (
+        <Card className="animate-fade-up">
+          <CardContent className="space-y-3 p-6">
+            <p className="font-medium text-ink">
+              Generating the case study — this usually takes under a minute.
+            </p>
+            <p className="text-sm text-ink-secondary">
+              Taking longer than expected? You can safely retry — the recorded
+              answers are already saved.
+            </p>
+            <RetryProcessingButton campaignId={campaign.id} />
+          </CardContent>
+        </Card>
+      )}
+
       {campaign.status === 'complete' ? (
         <Card className="animate-fade-up">
           <CardContent className="flex items-center gap-4 p-6">

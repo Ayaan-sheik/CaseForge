@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { createAdminClient } from '@/lib/supabase/server';
 import { transcribeAudio } from '@/lib/ai/groq';
 import { cleanTranscript } from '@/lib/ai/cleanTranscript';
 import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
 import type { Campaign, Question } from '@/lib/types';
+
+// Whisper + LLM cleaning + the synthesis tail can exceed Vercel's default
+// function timeout (10s hobby / 15s pro).
+export const maxDuration = 60;
 
 /**
  * POST /api/interview/[token]/upload
@@ -185,8 +190,13 @@ export async function POST(
       .maybeSingle();
 
     if (locked) {
-      synthesizeCaseStudy(campaign.id).catch((err) =>
-        console.error('Synthesis failed:', err)
+      // waitUntil keeps the serverless function alive after the response is
+      // returned — without it, Vercel freezes the lambda and synthesis dies
+      // mid-flight, leaving the campaign stuck in 'processing'.
+      waitUntil(
+        synthesizeCaseStudy(campaign.id).catch((err) =>
+          console.error('Synthesis failed:', err)
+        )
       );
     }
   }
