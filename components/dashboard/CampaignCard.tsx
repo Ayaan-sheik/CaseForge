@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowUpRight, Bell, Eye } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowUpRight, Bell, Eye, Trash2 } from 'lucide-react';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
 import { CopyMagicLinkButton } from '@/components/dashboard/CopyMagicLinkButton';
 import { SendReminderModal } from '@/components/dashboard/SendReminderModal';
+import { DeleteCampaignModal } from '@/components/dashboard/DeleteCampaignModal';
 import { relativeTime } from '@/lib/utils/relativeTime';
 import { cn } from '@/lib/utils/cn';
 import type { Campaign } from '@/lib/types';
@@ -26,7 +28,9 @@ export function CampaignCard({
   onPreview,
   isPreviewActive,
 }: CampaignCardProps) {
+  const router = useRouter();
   const [reminderOpen, setReminderOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const showCopyButton = campaign.status !== 'draft';
   const isComplete = campaign.status === 'complete';
 
@@ -68,6 +72,19 @@ export function CampaignCard({
             {showCopyButton && (
               <CopyMagicLinkButton magicLink={magicLink} />
             )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setDeleteOpen(true);
+              }}
+              title="Delete campaign"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-ink-muted transition-all duration-200 hover:border-accent/40 hover:bg-accent/10 hover:text-accent"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span className="sr-only">Delete campaign</span>
+            </button>
             {stalledInfo ? (
               <button
                 type="button"
@@ -124,6 +141,14 @@ export function CampaignCard({
           onClose={() => setReminderOpen(false)}
         />
       )}
+
+      <DeleteCampaignModal
+        clientName={campaign.client_name}
+        campaignId={campaign.id}
+        isOpen={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onDeleted={() => router.refresh()}
+      />
     </>
   );
 }

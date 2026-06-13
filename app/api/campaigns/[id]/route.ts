@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 import { regenerateQuestion } from '@/lib/ai/generateQuestions';
 import { sendEmail } from '@/lib/email/send';
 import { campaignCreatedEmail } from '@/lib/email/templates';
@@ -142,4 +142,61 @@ export async function PATCH(
   }
 
   return NextResponse.json({ campaign: updated });
+}
+
+/**
+ * DELETE /api/campaigns/[id]
+ * Permanently removes one of the creator's campaigns. Deleting the row cascades
+ * to its `responses` and `outputs` rows; the audio/PDF files in Storage are not
+ * covered by that cascade, so we remove them explicitly first.
+ */
+export async function DELETE(
+  _request: Request,
+  { params }: { params: { id: string } }
+) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Confirm ownership before touching anything.
+  const { data: campaign } = await supabase
+    .from('campaigns')
+    .select('id')
+    .eq('id', params.id)
+    .eq('creator_id', user.id)
+    .maybeSingle();
+
+  if (!campaign) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
+
+  // Storage is NOT covered by the DB cascade — remove audio + PDF explicitly.
+  // Files are named deterministically by campaign id; .remove() no-ops on misses.
+  const admin = createAdminClient();
+  const { data: audioFiles } = await admin.storage.from('audio').list(params.id);
+  if (audioFiles?.length) {
+    await admin.storage
+      .from('audio')
+      .remove(audioFiles.map((f) => `${params.id}/${f.name}`));
+  }
+  await admin.storage.from('pdfs').remove([`${params.id}.pdf`]);
+
+  // Delete the row last (cascades to responses/outputs).
+  const { error } = await supabase
+    .from('campaigns')
+    .delete()
+    .eq('id', params.id)
+    .eq('creator_id', user.id);
+
+  if (error) {
+    console.error('Campaign delete failed:', error);
+    return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true });
 }
