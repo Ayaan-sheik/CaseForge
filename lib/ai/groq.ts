@@ -52,6 +52,8 @@ export async function transcribeAudio(audio: File): Promise<string> {
     file: audio,
     model: GROQ_WHISPER_MODEL,
     response_format: 'json',
+    language: 'en',
+    prompt: 'Business interview. Client discussing their experience, challenges, solutions, and results.',
   });
   return transcription.text ?? '';
 }

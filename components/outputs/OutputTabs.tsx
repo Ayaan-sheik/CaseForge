@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Download, ExternalLink, RefreshCw } from 'lucide-react';
+import { Download, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -11,37 +9,13 @@ import { LinkedInQuoteCard } from '@/components/outputs/LinkedInQuoteCard';
 import type { Output } from '@/lib/types';
 
 interface OutputTabsProps {
-  campaignId: string;
   output: Output;
   appUrl: string;
 }
 
-export function OutputTabs({ campaignId, output, appUrl }: OutputTabsProps) {
-  const router = useRouter();
-  const [regenerating, setRegenerating] = useState(false);
-  const [error, setError] = useState('');
-
+export function OutputTabs({ output, appUrl }: OutputTabsProps) {
   const publicLink = `${appUrl}/case-study/${output.web_slug}`;
   const quotes = output.linkedin_quotes ?? [];
-
-  async function handleRegeneratePDF() {
-    setError('');
-    setRegenerating(true);
-
-    const res = await fetch(`/api/outputs/${campaignId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'regenerate_pdf' }),
-    });
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error ?? 'PDF regeneration failed.');
-    } else {
-      router.refresh();
-    }
-    setRegenerating(false);
-  }
 
   return (
     <Tabs defaultValue="pdf">
@@ -61,24 +35,12 @@ export function OutputTabs({ campaignId, output, appUrl }: OutputTabsProps) {
               </Button>
             </a>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRegeneratePDF}
-            disabled={regenerating}
-          >
-            <RefreshCw
-              className={regenerating ? 'h-4 w-4 animate-spin' : 'h-4 w-4'}
-            />
-            {regenerating ? 'Regenerating…' : 'Regenerate PDF'}
-          </Button>
-          {error && <p className="text-sm text-accent">{error}</p>}
         </div>
         {output.pdf_url ? (
           <PDFPreview pdfUrl={output.pdf_url} />
         ) : (
           <p className="text-sm text-ink-secondary">
-            No PDF yet — try regenerating.
+            No PDF available yet.
           </p>
         )}
       </TabsContent>

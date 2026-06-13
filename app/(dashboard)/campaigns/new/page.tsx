@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, Mail, MessageSquare, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Mail, MessageSquare, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -115,6 +115,16 @@ export default function NewCampaignPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
+      {step < 3 && (
+        <Link
+          href="/dashboard"
+          className="mb-8 inline-flex items-center gap-1.5 text-[14px] text-ink-secondary transition-colors hover:text-ink"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Dashboard
+        </Link>
+      )}
+
       {/* Tape-rail step indicator */}
       <div className="tape-rail mb-12">
         {STEP_LABELS.map((s, i) => {

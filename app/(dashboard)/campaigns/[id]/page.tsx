@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { ArrowRight } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/server';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/dashboard/StatusBadge';
@@ -51,7 +51,14 @@ export default async function CampaignPage({ params }: { params: { id: string } 
       {/* Page header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="eyebrow">Campaign</p>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-[14px] text-ink-secondary transition-colors hover:text-ink"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Dashboard
+          </Link>
+          <p className="eyebrow mt-4">Campaign</p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <h1 className="font-display text-[clamp(28px,3vw,36px)] font-semibold leading-tight tracking-[-0.025em]">
               {campaign.client_name}

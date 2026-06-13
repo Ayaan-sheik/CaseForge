@@ -97,7 +97,7 @@ export default async function OutputsPage({ params }: { params: { id: string } }
       </div>
 
       <div className="animate-fade-up" style={{ animationDelay: '120ms' }}>
-        <OutputTabs campaignId={campaign.id} output={output} appUrl={appUrl} />
+        <OutputTabs output={output} appUrl={appUrl} />
       </div>
     </div>
   );

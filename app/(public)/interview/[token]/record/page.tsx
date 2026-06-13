@@ -11,7 +11,7 @@ import { WaveformVisualizer } from '@/components/interview/WaveformVisualizer';
 import { formatDuration } from '@/lib/utils/formatDuration';
 import type { Question } from '@/lib/types';
 
-type Phase = 'loading' | 'invalid' | 'idle' | 'recording' | 'reviewing' | 'uploading';
+type Phase = 'loading' | 'invalid' | 'idle' | 'recording' | 'reviewing' | 'uploading' | 'transcribed';
 
 const MAX_SECONDS = 180;
 const WARN_SECONDS = 150;
@@ -27,6 +27,8 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
+  const [transcript, setTranscript] = useState('');
+  const isLastQuestion = index === questions.length - 1;
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -142,21 +144,34 @@ export default function RecordPage({ params }: { params: { token: string } }) {
     formData.append('duration', String(durationRef.current));
 
     const res = await fetch(`/api/interview/${params.token}/upload`, { method: 'POST', body: formData });
+    const data = await res.json().catch(() => ({}));
+
     if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
       setError(data.error ?? 'Upload failed — please try submitting again.');
       setPhase('reviewing');
       return;
     }
 
     discardTake();
+    setTranscript(data.transcript ?? '');
+    setPhase('transcribed');
+  }
+
+  async function handleContinue() {
     if (index < questions.length - 1) {
+      setTranscript('');
       setIndex(index + 1);
       setPhase('idle');
     } else {
       await fetch(`/api/interview/${params.token}/complete`, { method: 'POST' }).catch(() => {});
       router.push(`/interview/${params.token}/done`);
     }
+  }
+
+  function handleTranscriptReRecord() {
+    setTranscript('');
+    setError('');
+    setPhase('idle');
   }
 
   useEffect(() => {
@@ -285,6 +300,38 @@ export default function RecordPage({ params }: { params: { token: string } }) {
                 onClick={handleSubmit}
               >
                 Submit answer →
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'transcribed' && (
+          <div className="animate-fade-up flex w-full max-w-md flex-col gap-4">
+            <p className="font-editorial text-[18px] italic" style={{ color: 'var(--device-dim)' }}>
+              Here&apos;s what we heard:
+            </p>
+            <div
+              className="rounded-[14px] p-4 text-[14px] leading-relaxed"
+              style={{ background: 'rgba(244,241,233,0.08)', color: 'var(--device-text)' }}
+            >
+              {transcript || <em style={{ color: 'var(--device-dim)' }}>No transcript available.</em>}
+            </div>
+            <div className="flex w-full flex-col gap-3 sm:flex-row">
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
+                onClick={handleTranscriptReRecord}
+              >
+                <RotateCcw className="h-4 w-4" />
+                Re-record
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1 bg-white text-ink hover:bg-paper"
+                onClick={handleContinue}
+              >
+                {isLastQuestion ? 'Submit →' : 'Next question →'}
               </Button>
             </div>
           </div>
