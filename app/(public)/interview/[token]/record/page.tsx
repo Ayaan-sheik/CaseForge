@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { QuestionCard } from '@/components/interview/QuestionCard';
@@ -10,22 +11,12 @@ import { WaveformVisualizer } from '@/components/interview/WaveformVisualizer';
 import { formatDuration } from '@/lib/utils/formatDuration';
 import type { Question } from '@/lib/types';
 
-type Phase =
-  | 'loading'
-  | 'invalid'
-  | 'idle'
-  | 'recording'
-  | 'reviewing'
-  | 'uploading';
+type Phase = 'loading' | 'invalid' | 'idle' | 'recording' | 'reviewing' | 'uploading';
 
-const MAX_SECONDS = 180; // auto-stop at 3:00
-const WARN_SECONDS = 150; // warning at 2:30
+const MAX_SECONDS = 180;
+const WARN_SECONDS = 150;
 
-export default function RecordPage({
-  params,
-}: {
-  params: { token: string };
-}) {
+export default function RecordPage({ params }: { params: { token: string } }) {
   const router = useRouter();
 
   const [phase, setPhase] = useState<Phase>('loading');
@@ -46,7 +37,6 @@ export default function RecordPage({
   const durationRef = useRef(0);
   const audioUrlRef = useRef<string | null>(null);
 
-  // Load the campaign's questions
   useEffect(() => {
     let cancelled = false;
     fetch(`/api/interview/${params.token}`)
@@ -54,18 +44,14 @@ export default function RecordPage({
         if (!res.ok) throw new Error('not found');
         const data = await res.json();
         if (cancelled) return;
-        if (!Array.isArray(data.questions) || data.questions.length === 0) {
-          throw new Error('no questions');
-        }
+        if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error('no questions');
         setQuestions(data.questions);
         setPhase('idle');
       })
       .catch(() => {
         if (!cancelled) setPhase('invalid');
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [params.token]);
 
   const cleanupAudioGraph = useCallback(() => {
@@ -80,30 +66,22 @@ export default function RecordPage({
     const recorder = recorderRef.current;
     if (!recorder || recorder.state !== 'recording') return;
     durationRef.current = Math.round((Date.now() - startTimeRef.current) / 1000);
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     recorder.stop();
   }, []);
 
   const startRecording = useCallback(async () => {
     if (phase !== 'idle') return;
     setError('');
-
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch {
-      setError(
-        'We need microphone access to record your answer. Please allow it and try again.'
-      );
+      setError('We need microphone access to record your answer. Please allow it and try again.');
       return;
     }
 
     streamRef.current = stream;
-
-    // Waveform: feed the mic into an AnalyserNode
     try {
       const audioContext = new AudioContext();
       const source = audioContext.createMediaStreamSource(stream);
@@ -112,31 +90,17 @@ export default function RecordPage({
       source.connect(analyserNode);
       audioContextRef.current = audioContext;
       setAnalyser(analyserNode);
-    } catch {
-      // Visualizer is cosmetic — keep recording even if Web Audio fails
-    }
+    } catch { /* cosmetic — keep recording */ }
 
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm')
-      ? 'audio/webm'
-      : undefined;
-    const recorder = mimeType
-      ? new MediaRecorder(stream, { mimeType })
-      : new MediaRecorder(stream);
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined;
+    const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
     chunksRef.current = [];
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data);
-    };
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
     recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, {
-        type: recorder.mimeType || 'audio/webm',
-      });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
       cleanupAudioGraph();
-      if (blob.size === 0) {
-        setPhase('idle');
-        setElapsed(0);
-        return;
-      }
+      if (blob.size === 0) { setPhase('idle'); setElapsed(0); return; }
       const url = URL.createObjectURL(blob);
       audioUrlRef.current = url;
       setAudioBlob(blob);
@@ -165,11 +129,7 @@ export default function RecordPage({
     setElapsed(0);
   }
 
-  function handleReRecord() {
-    discardTake();
-    setError('');
-    setPhase('idle');
-  }
+  function handleReRecord() { discardTake(); setError(''); setPhase('idle'); }
 
   async function handleSubmit() {
     if (!audioBlob) return;
@@ -181,11 +141,7 @@ export default function RecordPage({
     formData.append('questionId', questions[index].id);
     formData.append('duration', String(durationRef.current));
 
-    const res = await fetch(`/api/interview/${params.token}/upload`, {
-      method: 'POST',
-      body: formData,
-    });
-
+    const res = await fetch(`/api/interview/${params.token}/upload`, { method: 'POST', body: formData });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       setError(data.error ?? 'Upload failed — please try submitting again.');
@@ -193,20 +149,16 @@ export default function RecordPage({
       return;
     }
 
-    // uploaded — auto-advance
     discardTake();
     if (index < questions.length - 1) {
       setIndex(index + 1);
       setPhase('idle');
     } else {
-      await fetch(`/api/interview/${params.token}/complete`, {
-        method: 'POST',
-      }).catch(() => {});
+      await fetch(`/api/interview/${params.token}/complete`, { method: 'POST' }).catch(() => {});
       router.push(`/interview/${params.token}/done`);
     }
   }
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
@@ -218,13 +170,13 @@ export default function RecordPage({
 
   if (phase === 'loading') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-ink">
+      <main className="flex min-h-screen items-center justify-center" style={{ background: 'var(--device)' }}>
         <div className="flex h-10 items-center gap-1.5" aria-hidden="true">
           {[14, 26, 18, 32, 22].map((h, i) => (
             <span
               key={i}
-              className="wave-bar w-1 rounded-full bg-paper/60"
-              style={{ height: `${h}px`, animationDelay: `${i * 0.14}s` }}
+              className="wave-bar w-1 rounded-full"
+              style={{ height: `${h}px`, animationDelay: `${i * 0.14}s`, background: 'rgba(244,241,233,0.4)' }}
             />
           ))}
         </div>
@@ -234,12 +186,10 @@ export default function RecordPage({
 
   if (phase === 'invalid') {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-ink p-6">
-        <div className="animate-fade-up max-w-sm text-center">
-          <h1 className="font-display text-xl font-semibold text-paper">
-            This link isn&apos;t active anymore
-          </h1>
-          <p className="mt-2 text-sm text-paper/60">
+      <main className="flex min-h-screen items-center justify-center p-6" style={{ background: 'var(--device)' }}>
+        <div className="animate-fade-up max-w-sm text-center" style={{ color: 'var(--device-text)' }}>
+          <h1 className="font-display text-[22px] font-semibold">This link isn&apos;t active anymore</h1>
+          <p className="mt-2 text-[15px]" style={{ color: 'var(--device-dim)' }}>
             Please contact the person who sent it to you.
           </p>
         </div>
@@ -251,16 +201,46 @@ export default function RecordPage({
   const showWarning = phase === 'recording' && elapsed >= WARN_SECONDS;
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between bg-ink px-6 py-10">
-      <QuestionCard
-        question={question.text}
-        index={index}
-        total={questions.length}
-      />
+    <main className="flex min-h-screen flex-col" style={{ background: 'var(--device)' }}>
+      {/* Header bar */}
+      <div
+        className="flex items-center justify-between px-6 py-4"
+        style={{ borderBottom: '1px solid var(--device-line)' }}
+      >
+        <Link
+          href="/"
+          className="flex items-center gap-[9px] font-display text-[17px] font-semibold tracking-[-0.02em] no-underline"
+          style={{ color: 'var(--device-text)' }}
+        >
+          <span className="h-[9px] w-[9px] flex-shrink-0 rounded-full bg-accent" />
+          CaseForge
+        </Link>
+        <div className="rec-chip">
+          {phase === 'recording' ? (
+            <span className="pulse-dot" />
+          ) : phase === 'uploading' ? (
+            <span className="pulse-dot" />
+          ) : (
+            <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: 'var(--device-line)' }} />
+          )}
+          <span>
+            {phase === 'recording' ? 'REC' : phase === 'uploading' ? 'SAVING' : 'READY'}
+          </span>
+        </div>
+      </div>
 
-      <div className="flex w-full max-w-md flex-1 flex-col items-center justify-center gap-6 py-8">
+      {/* Question */}
+      <div className="px-6 pt-6">
+        <QuestionCard question={question.text} index={index} total={questions.length} />
+      </div>
+
+      {/* Recording controls */}
+      <div className="flex flex-1 flex-col items-center justify-center gap-6 px-6 py-8">
         {phase === 'idle' && (
-          <p className="animate-fade-in font-editorial text-lg italic text-paper/40">
+          <p
+            className="animate-fade-in max-w-xs text-center font-editorial text-[18px] italic"
+            style={{ color: 'var(--device-dim)' }}
+          >
             Take a breath. Say it like you&apos;d say it to a colleague.
           </p>
         )}
@@ -268,11 +248,14 @@ export default function RecordPage({
         {phase === 'recording' && (
           <>
             <WaveformVisualizer analyser={analyser} active />
-            <p className="font-mono text-3xl font-semibold tabular-nums text-paper">
+            <p
+              className="font-mono text-3xl font-semibold tabular-nums"
+              style={{ color: 'var(--device-text)' }}
+            >
               {formatDuration(elapsed)}
             </p>
             {showWarning && (
-              <p className="animate-fade-in font-mono text-xs uppercase tracking-[0.14em] text-accent">
+              <p className="animate-fade-in font-mono text-[12px] uppercase tracking-[0.14em] text-accent">
                 30 seconds left — recording stops at 3:00
               </p>
             )}
@@ -280,8 +263,8 @@ export default function RecordPage({
         )}
 
         {phase === 'reviewing' && audioUrl && (
-          <div className="animate-fade-up flex w-full flex-col items-center gap-6">
-            <p className="font-editorial text-lg italic text-paper/60">
+          <div className="animate-fade-up flex w-full max-w-md flex-col items-center gap-6">
+            <p className="font-editorial text-[18px] italic" style={{ color: 'var(--device-dim)' }}>
               Have a listen — happy with it?
             </p>
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
@@ -290,7 +273,7 @@ export default function RecordPage({
               <Button
                 variant="outline"
                 size="lg"
-                className="flex-1 border-paper/25 bg-transparent text-paper hover:border-paper/50 hover:bg-paper/10 hover:text-paper"
+                className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
                 onClick={handleReRecord}
               >
                 <RotateCcw className="h-4 w-4" />
@@ -298,7 +281,7 @@ export default function RecordPage({
               </Button>
               <Button
                 size="lg"
-                className="flex-1 bg-paper text-ink hover:bg-white"
+                className="flex-1 bg-white text-ink hover:bg-paper"
                 onClick={handleSubmit}
               >
                 Submit answer →
@@ -318,18 +301,17 @@ export default function RecordPage({
                 />
               ))}
             </div>
-            <p className="font-mono text-xs uppercase tracking-[0.14em] text-paper/60">
+            <p className="font-mono text-[12px] uppercase tracking-[0.14em]" style={{ color: 'var(--device-dim)' }}>
               Saving your answer…
             </p>
           </div>
         )}
 
-        {error && (
-          <p className="max-w-sm text-center text-sm text-accent">{error}</p>
-        )}
+        {error && <p className="max-w-sm text-center text-[14px] text-accent">{error}</p>}
       </div>
 
-      <div className="pb-4">
+      {/* Record button */}
+      <div className="flex justify-center pb-8 pt-4">
         {(phase === 'idle' || phase === 'recording') && (
           <RecordButton
             recording={phase === 'recording'}

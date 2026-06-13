@@ -31,23 +31,19 @@ export default async function DashboardPage() {
   const firstName = profile?.full_name?.split(' ')[0];
   const total = campaigns?.length ?? 0;
   const inFlight =
-    campaigns?.filter((c) =>
-      ['sent', 'recording', 'processing'].includes(c.status)
-    ).length ?? 0;
-  const complete =
-    campaigns?.filter((c) => c.status === 'complete').length ?? 0;
+    campaigns?.filter((c) => ['sent', 'recording', 'processing'].includes(c.status)).length ?? 0;
+  const complete = campaigns?.filter((c) => c.status === 'complete').length ?? 0;
 
   return (
     <div>
+      {/* Page header */}
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="font-mono text-xs uppercase tracking-[0.18em] text-ink-muted">
-            Campaigns
-          </p>
-          <h1 className="mt-2 font-display text-3xl font-semibold tracking-tight">
+          <p className="eyebrow">Campaigns</p>
+          <h1 className="mt-4 font-display text-[clamp(28px,3vw,36px)] font-semibold leading-tight tracking-[-0.025em]">
             {firstName ? `Welcome back, ${firstName}` : 'Welcome back'}
           </h1>
-          <p className="mt-1.5 font-editorial text-base italic text-ink-muted">
+          <p className="mt-1.5 font-editorial italic text-[15px] text-ink-secondary">
             {total
               ? 'Every link you send is a story waiting to come back.'
               : 'Your first story is one link away.'}
@@ -61,32 +57,33 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
+      {/* Stats */}
       {total > 0 && (
-        <div className="mt-8 grid grid-cols-3 gap-4">
+        <div className="mt-10 grid grid-cols-3 gap-4 border-t border-line pt-8">
           {[
-            { value: total, label: 'campaigns' },
-            { value: inFlight, label: 'in flight' },
-            { value: complete, label: 'published' },
+            { value: total, label: 'Total campaigns' },
+            { value: inFlight, label: 'In flight' },
+            { value: complete, label: 'Published' },
           ].map((stat, i) => (
             <div
               key={stat.label}
-              className="animate-fade-up rounded-[20px] border border-line bg-surface p-5 sm:p-6"
+              className="animate-fade-up"
               style={{ animationDelay: `${i * 90}ms` }}
             >
               <CountUp
                 value={stat.value}
-                className="font-display text-4xl font-semibold tracking-tight sm:text-5xl"
+                className="font-display text-[46px] font-semibold leading-none tracking-[-0.03em]"
               />
-              <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
-                {stat.label}
-              </p>
+              <p className="mt-1.5 text-[15px] text-ink-secondary">{stat.label}</p>
             </div>
           ))}
         </div>
       )}
 
+      {/* Campaign list */}
       {campaigns && campaigns.length > 0 ? (
-        <div className="mt-6 space-y-3">
+        <div className="mt-10 space-y-3 border-t border-line pt-8">
+          <p className="eyebrow mb-6">All campaigns</p>
           {campaigns.map((campaign, i) => (
             <div
               key={campaign.id}
@@ -98,26 +95,22 @@ export default async function DashboardPage() {
           ))}
         </div>
       ) : (
-        <div className="animate-scale-in mt-10 flex flex-col items-center rounded-[28px] border border-dashed border-line bg-surface px-6 py-20 text-center">
+        <div className="animate-scale-in mt-10 flex flex-col items-center rounded-[20px] border border-dashed border-line bg-white px-6 py-20 text-center">
           <div className="flex h-16 items-end gap-1" aria-hidden="true">
             {WAVE_HEIGHTS.map((h, i) => (
               <span
                 key={i}
-                className="wave-bar w-1.5 rounded-full bg-ink/80"
-                style={{
-                  height: `${h + 8}px`,
-                  animationDelay: `${i * 0.12}s`,
-                }}
+                className="wave-bar w-1.5 rounded-full bg-ink/60"
+                style={{ height: `${h + 8}px`, animationDelay: `${i * 0.12}s` }}
               />
             ))}
           </div>
-          <h2 className="mt-8 font-display text-xl font-semibold tracking-tight">
+          <h2 className="mt-8 font-display text-[22px] font-semibold tracking-tight">
             No campaigns yet
           </h2>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed text-ink-secondary">
-            Send a magic link to a client and their voice comes back as a
-            finished case study — PDF, public page, and LinkedIn quotes
-            included.
+          <p className="mt-2 max-w-sm text-[15px] leading-relaxed text-ink-secondary">
+            Send a magic link to a client and their voice comes back as a finished case study — PDF,
+            public page, and LinkedIn quotes included.
           </p>
           <Link href="/campaigns/new" className="mt-8">
             <Button size="lg">Create your first campaign</Button>

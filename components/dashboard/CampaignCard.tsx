@@ -7,7 +7,7 @@ import type { Campaign } from '@/lib/types';
 export function CampaignCard({ campaign }: { campaign: Campaign }) {
   return (
     <Link href={`/campaigns/${campaign.id}`} className="group block">
-      <div className="hover-lift flex items-center justify-between gap-4 rounded-[20px] border border-line bg-surface p-5 shadow-[0_1px_2px_rgb(25_21_16/0.03)] sm:p-6">
+      <div className="hover-lift flex items-center justify-between gap-4 rounded-[18px] border border-line bg-white p-5 sm:p-6">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h3 className="truncate font-display text-base font-semibold tracking-tight">

@@ -20,6 +20,12 @@ const config: Config = {
           soft: '#FCE9E6',
         },
         success: '#4CC38A',
+        device: {
+          DEFAULT: '#15110C',
+          line: '#2C261E',
+          text: '#F4F1E9',
+          dim: '#9C948A',
+        },
       },
       fontFamily: {
         sans: ['var(--font-body)', ...defaultTheme.fontFamily.sans],

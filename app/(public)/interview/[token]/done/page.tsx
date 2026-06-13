@@ -1,11 +1,7 @@
+import Link from 'next/link';
 import { createAdminClient } from '@/lib/supabase/server';
-import { LogoMark } from '@/components/ui/logo';
 
-export default async function InterviewDonePage({
-  params,
-}: {
-  params: { token: string };
-}) {
+export default async function InterviewDonePage({ params }: { params: { token: string } }) {
   const supabase = createAdminClient();
 
   const { data: campaign } = await supabase
@@ -25,18 +21,24 @@ export default async function InterviewDonePage({
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper p-6">
-      <div className="max-w-md text-center">
-        <div className="animate-scale-in mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-success/15">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="h-10 w-10"
-            aria-hidden="true"
-          >
+    <main className="flex min-h-screen flex-col bg-paper px-7 py-10">
+      {/* Wordmark */}
+      <Link
+        href="/"
+        className="inline-flex items-center gap-[9px] font-display text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline"
+      >
+        <span className="h-[10px] w-[10px] flex-shrink-0 rounded-full bg-accent" />
+        CaseForge
+      </Link>
+
+      {/* Done card */}
+      <div className="mx-auto mt-16 w-full max-w-md">
+        {/* Success icon */}
+        <div className="animate-scale-in mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full bg-success/15">
+          <svg viewBox="0 0 24 24" fill="none" className="h-9 w-9" aria-hidden="true">
             <path
               d="M5 12.5l4.5 4.5L19 7.5"
-              stroke="#2E8B61"
+              stroke="#4CC38A"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -45,35 +47,59 @@ export default async function InterviewDonePage({
           </svg>
         </div>
 
+        {/* SAVED chip */}
+        <div className="animate-fade-up mt-5 flex justify-center" style={{ animationDelay: '150ms' }}>
+          <div className="inline-flex items-center gap-2 rounded-full border border-line bg-white px-4 py-2">
+            <span className="h-2 w-2 flex-shrink-0 rounded-full bg-success" />
+            <span className="font-mono text-[12px] uppercase tracking-[0.12em] text-ink-secondary">
+              Saved
+            </span>
+          </div>
+        </div>
+
         <h1
-          className="animate-fade-up mt-8 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl"
+          className="animate-fade-up mt-7 text-center font-display text-[clamp(28px,4vw,34px)] font-semibold leading-tight tracking-[-0.025em]"
           style={{ animationDelay: '200ms' }}
         >
           Thank you{campaign ? `, ${campaign.client_name}` : ''}.
         </h1>
         <p
-          className="animate-fade-up mt-4 font-editorial text-xl italic leading-relaxed text-ink-secondary"
-          style={{ animationDelay: '350ms' }}
+          className="animate-fade-up mt-3 text-center font-editorial text-[19px] italic leading-relaxed text-ink-secondary"
+          style={{ animationDelay: '320ms' }}
         >
           Your words are already becoming a story.
         </p>
         <p
-          className="animate-fade-up mt-3 text-base leading-relaxed text-ink-secondary"
-          style={{ animationDelay: '450ms' }}
+          className="animate-fade-up mt-3 text-center text-[15px] leading-relaxed text-ink-secondary"
+          style={{ animationDelay: '420ms' }}
         >
-          Your answers have been submitted — {creatorName} will have their
-          case study shortly. You can close this tab.
+          Your answers have been submitted — {creatorName} will have their case study shortly. You can
+          close this tab.
         </p>
 
+        {/* Asset chips — what's being built */}
         <div
-          className="animate-fade-up mt-12 flex items-center justify-center gap-2"
+          className="animate-fade-up mt-8 flex flex-wrap justify-center gap-2"
           style={{ animationDelay: '600ms' }}
         >
-          <LogoMark className="h-5 w-5 rounded-md" />
-          <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-ink-muted">
-            Powered by CaseForge
-          </p>
+          {['PDF case study', 'Hosted page', 'Quote cards'].map((label) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 font-mono text-[11.5px] text-ink-secondary"
+            >
+              <span className="font-medium text-success">✓</span>
+              {label}
+            </span>
+          ))}
         </div>
+
+        {/* Footer branding */}
+        <p
+          className="animate-fade-up mt-10 text-center font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink-secondary"
+          style={{ animationDelay: '700ms' }}
+        >
+          Powered by CaseForge
+        </p>
       </div>
     </main>
   );

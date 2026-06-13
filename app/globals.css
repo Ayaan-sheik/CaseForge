@@ -3,6 +3,14 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --accent: #EF3B2D;
+    --device: #15110C;
+    --device-line: #2C261E;
+    --device-text: #F4F1E9;
+    --device-dim: #9C948A;
+  }
+
   html {
     scroll-behavior: smooth;
   }
@@ -13,12 +21,209 @@
   }
 
   ::selection {
-    @apply bg-ink text-paper;
+    background: #EF3B2D;
+    color: #fff;
   }
 
   :focus-visible {
-    outline: 2px solid #191510;
-    outline-offset: 2px;
+    outline: 2px solid #EF3B2D;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* ── Eyebrow: mono uppercase label with red line prefix ── */
+  .eyebrow {
+    @apply flex items-center gap-2.5 font-mono text-[12.5px] uppercase tracking-[0.14em] text-ink-secondary;
+  }
+  .eyebrow::before {
+    content: '';
+    display: block;
+    width: 22px;
+    height: 1px;
+    background: #EF3B2D;
+    flex-shrink: 0;
+  }
+
+  /* ── Dark device skin (hero player widget) ─────────────── */
+  .player {
+    background: var(--device);
+    color: var(--device-text);
+    border-radius: 18px;
+    padding: 26px 26px 24px;
+    box-shadow:
+      0 30px 70px -28px rgba(25, 21, 16, 0.5),
+      0 2px 0 rgba(255, 255, 255, 0.06) inset;
+  }
+
+  .player-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    border-bottom: 1px solid var(--device-line);
+    padding-bottom: 16px;
+  }
+
+  /* ── REC / SAVED chip ─────────────────────────────────── */
+  .rec-chip {
+    @apply flex items-center gap-[7px] font-mono text-[11.5px] uppercase tracking-[0.12em] whitespace-nowrap;
+    color: var(--device-dim);
+    padding-top: 2px;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #EF3B2D;
+    animation: pulse-dot 1.3s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+
+  .pulse-dot.done {
+    animation: none;
+    background: #4CC38A;
+  }
+
+  /* ── Tape-rail timeline ────────────────────────────────── */
+  .tape-rail {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 36px;
+  }
+
+  .tape-rail::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    right: 7px;
+    top: 7px;
+    height: 1px;
+    background: #E8E4DA;
+  }
+
+  .tape-step {
+    position: relative;
+    padding-top: 34px;
+  }
+
+  .tape-step::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background: #FAF9F5;
+    border: 2px solid #191510;
+  }
+
+  .tape-step.active::before {
+    background: #EF3B2D;
+    border-color: #EF3B2D;
+  }
+
+  .tape-step.done::before {
+    background: #4CC38A;
+    border-color: #4CC38A;
+  }
+
+  /* ── Compare grid ─────────────────────────────────────── */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid #E8E4DA;
+    border-radius: 18px;
+    overflow: hidden;
+  }
+
+  .compare-col {
+    padding: 44px;
+  }
+
+  .compare-col + .compare-col {
+    border-left: 1px solid #E8E4DA;
+  }
+
+  .compare-col.now {
+    background: #fff;
+  }
+
+  /* ── Out-card visual mocks ────────────────────────────── */
+  .v-pdf {
+    border: 1px solid #E8E4DA;
+    background: #FAF9F5;
+    padding: 16px 18px;
+    border-radius: 12px;
+  }
+
+  .v-pdf .bar {
+    height: 7px;
+    border-radius: 4px;
+    background: #E8E4DA;
+    margin-bottom: 8px;
+  }
+
+  .v-pdf .bar.title {
+    width: 55%;
+    background: #191510;
+    height: 9px;
+    margin-bottom: 12px;
+  }
+
+  .v-pdf .bar.metric {
+    width: 38%;
+    background: #EF3B2D;
+  }
+
+  .v-page {
+    border: 1px solid #E8E4DA;
+    background: #FAF9F5;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .v-page .chrome {
+    display: flex;
+    gap: 5px;
+    padding: 9px 12px;
+    border-bottom: 1px solid #E8E4DA;
+  }
+
+  .v-page .chrome i {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #E8E4DA;
+    font-style: normal;
+  }
+
+  .v-page .body {
+    padding: 14px 16px;
+  }
+
+  .v-page .bar {
+    height: 7px;
+    border-radius: 4px;
+    background: #E8E4DA;
+    margin-bottom: 7px;
+  }
+
+  .v-page .bar.h {
+    width: 62%;
+    background: #191510;
+    height: 9px;
+  }
+
+  .v-quote {
+    background: var(--device);
+    color: var(--device-text);
+    padding: 20px;
+    border-radius: 12px;
   }
 }
 
@@ -62,10 +267,8 @@
   }
 
   .hover-lift:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 2px rgb(25 21 16 / 0.03),
-      0 12px 28px -12px rgb(25 21 16 / 0.12);
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px -22px rgba(25, 21, 16, 0.25);
   }
 
   /* Typing caret for transcript simulations */
@@ -149,6 +352,19 @@
   animation: soft-pulse 2s ease-in-out infinite;
 }
 
+/* Pulsing dot for REC/live chips */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
+  }
+}
+
 /* Expanding ring for live/recording dots */
 @keyframes ring {
   0% {
@@ -193,6 +409,40 @@
   animation: fill-x linear forwards;
 }
 
+/* Pulsing CTA dot */
+@keyframes cta-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.85);
+  }
+}
+
+.animate-cta-pulse {
+  animation: cta-pulse 1.6s ease-in-out infinite;
+}
+
+/* Slide up for asset chips */
+@keyframes chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-chip-in {
+  animation: chip-in 0.45s cubic-bezier(0.21, 0.47, 0.32, 0.98) forwards;
+  opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-fade-in,
@@ -210,7 +460,14 @@
   .wave-bar,
   .animate-soft-pulse,
   .animate-ring,
-  .animate-fill-x {
+  .animate-fill-x,
+  .animate-cta-pulse,
+  .animate-chip-in {
+    animation: none;
+    opacity: 1;
+  }
+
+  .pulse-dot {
     animation: none;
   }
 
@@ -231,5 +488,40 @@
 
   html {
     scroll-behavior: auto;
+  }
+}
+
+/* ── Responsive tape-rail ────────────────────────────────── */
+@media (max-width: 768px) {
+  .tape-rail {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .tape-rail::before {
+    left: 7px;
+    right: auto;
+    top: 7px;
+    bottom: 7px;
+    width: 1px;
+    height: auto;
+  }
+
+  .tape-step {
+    padding-top: 0;
+    padding-left: 36px;
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compare-col + .compare-col {
+    border-left: none;
+    border-top: 1px solid #E8E4DA;
+  }
+
+  .compare-col {
+    padding: 32px 28px;
   }
 }
