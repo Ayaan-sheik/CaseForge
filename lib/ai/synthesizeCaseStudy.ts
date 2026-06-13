@@ -68,9 +68,9 @@ Return ONLY a valid JSON object (no markdown, no preamble):
   "results": "2-3 sentences. Lead with the strongest metric. Bold important numbers by wrapping in **double asterisks**.",
   "testimonial_quote": "The single best verbatim or lightly-edited quote from the transcripts. Must sound human.",
   "linkedin_quotes": [
-    { "quote": "First punchy insight or result in the client's voice, under 50 words", "context": "[Client Name] on [Service]" },
-    { "quote": "Second quote — different angle, focus on transformation", "context": "[Client Name] on [Service]" },
-    { "quote": "Third quote — recommendation or trust statement", "context": "[Client Name] on [Service]" }
+    { "quote": "First quote in the client's voice — lead with the punchy result or insight, then add a sentence of context explaining what made it possible. Aim for 40-80 words, 2-3 sentences.", "context": "[Client Name] on [Service]" },
+    { "quote": "Second quote — a different angle focused on the transformation. Contrast the before and after with concrete detail. Aim for 40-80 words, 2-3 sentences.", "context": "[Client Name] on [Service]" },
+    { "quote": "Third quote — a recommendation or trust statement that gives a specific reason someone should work with you. Aim for 40-80 words, 2-3 sentences.", "context": "[Client Name] on [Service]" }
   ]
 }`;
 

@@ -68,7 +68,7 @@ export function OutputTabs({ output, appUrl }: OutputTabsProps) {
         <p className="font-editorial text-base italic text-ink-muted">
           Post one per week — three weeks of proof from a single interview.
         </p>
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="space-y-4">
           {quotes.map((quote, index) => (
             <LinkedInQuoteCard key={index} quote={quote} />
           ))}
