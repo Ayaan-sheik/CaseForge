@@ -284,14 +284,14 @@ export default function RecordPage({ params }: { params: { token: string } }) {
             </p>
             {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
             <audio src={audioUrl} controls className="w-full" />
-            <div className="flex w-full flex-col gap-3 sm:flex-row">
+            <div className="flex w-full flex-col gap-4 sm:flex-row">
               <Button
                 variant="outline"
                 size="xl"
                 className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
                 onClick={handleReRecord}
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-5 w-5" />
                 Re-record
               </Button>
               <Button
@@ -316,14 +316,14 @@ export default function RecordPage({ params }: { params: { token: string } }) {
             >
               {transcript || <em style={{ color: 'var(--device-dim)' }}>No transcript available.</em>}
             </div>
-            <div className="flex w-full flex-col gap-3 sm:flex-row">
+            <div className="flex w-full flex-col gap-4 sm:flex-row">
               <Button
                 variant="outline"
                 size="xl"
                 className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
                 onClick={handleTranscriptReRecord}
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-5 w-5" />
                 Re-record
               </Button>
               <Button
