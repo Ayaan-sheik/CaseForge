@@ -121,6 +121,7 @@ export async function PATCH(
     .from('campaigns')
     .update(updates)
     .eq('id', params.id)
+    .eq('creator_id', user.id)
     .select()
     .single();
 
@@ -178,7 +179,14 @@ export async function DELETE(
   // Storage is NOT covered by the DB cascade — remove audio + PDF explicitly.
   // Files are named deterministically by campaign id; .remove() no-ops on misses.
   const admin = createAdminClient();
-  const { data: audioFiles } = await admin.storage.from('audio').list(params.id);
+  const { data: audioFiles, error: listError } = await admin.storage
+    .from('audio')
+    .list(params.id);
+  if (listError) {
+    // Don't abort the delete, but surface it — a failed list silently orphans
+    // the campaign's audio files in storage.
+    console.error('Could not list audio files for cleanup:', listError);
+  }
   if (audioFiles?.length) {
     await admin.storage
       .from('audio')

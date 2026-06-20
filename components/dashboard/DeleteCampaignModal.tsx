@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,8 +26,27 @@ export function DeleteCampaignModal({
   const [confirmText, setConfirmText] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => setMounted(true), []);
+
+  // Lock background scroll and allow Escape-to-close while open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  if (!isOpen || !mounted) return null;
 
   const confirmed = confirmText.trim().toLowerCase() === CONFIRM_PHRASE;
 
@@ -59,21 +79,21 @@ export function DeleteCampaignModal({
     }
   }
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`Delete campaign for ${clientName}`}
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-ink/50 backdrop-blur-md"
         onClick={handleClose}
       />
 
       {/* Panel */}
-      <div className="animate-fade-up relative z-10 w-full max-w-md rounded-t-[24px] bg-paper shadow-2xl sm:rounded-[24px]">
+      <div className="animate-fade-up relative z-10 w-full max-w-md rounded-[24px] bg-paper shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-line px-6 py-5">
           <div>
@@ -138,6 +158,7 @@ export function DeleteCampaignModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

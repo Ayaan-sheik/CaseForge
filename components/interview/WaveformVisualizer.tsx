@@ -47,7 +47,13 @@ export function WaveformVisualizer({
 
         ctx.fillStyle = '#EF3B2D';
         ctx.beginPath();
-        ctx.roundRect(x, y, barWidth * 0.6, barHeight, 3);
+        // roundRect is unsupported on Safari < 16 — fall back to a plain rect
+        // rather than throwing on every animation frame.
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, barWidth * 0.6, barHeight, 3);
+        } else {
+          ctx.rect(x, y, barWidth * 0.6, barHeight);
+        }
         ctx.fill();
       }
 

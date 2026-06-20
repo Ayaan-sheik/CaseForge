@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { Plus, X, Search } from 'lucide-react';
@@ -91,30 +91,40 @@ export function DashboardClient({ campaigns, appUrl, firstName }: DashboardClien
   const currentPage = Math.min(page, pageCount);
   const paged = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
+  // Tracks the most recently requested preview so a slow earlier fetch can't
+  // overwrite the output/loading state of a newer selection.
+  const latestPreviewIdRef = useRef<string | null>(null);
+
   async function handlePreview(campaignId: string) {
     setAnimateIn(false);
     if (previewCampaignId === campaignId) {
+      latestPreviewIdRef.current = null;
       setPreviewCampaignId(null);
       setPreviewOutput(null);
       return;
     }
+    latestPreviewIdRef.current = campaignId;
     setPreviewCampaignId(campaignId);
     setPreviewOutput(null);
     setPreviewLoading(true);
     try {
       const res = await fetch(`/api/outputs/${campaignId}`);
+      // A newer (or cleared) selection superseded this request — drop the result.
+      if (latestPreviewIdRef.current !== campaignId) return;
       if (res.ok) {
         const data = await res.json();
+        if (latestPreviewIdRef.current !== campaignId) return;
         setPreviewOutput(data.output ?? null);
       }
     } catch {
       // silently fail — panel still shows with an empty state
     } finally {
-      setPreviewLoading(false);
+      if (latestPreviewIdRef.current === campaignId) setPreviewLoading(false);
     }
   }
 
   function closePreview() {
+    latestPreviewIdRef.current = null;
     setAnimateIn(false);
     setPreviewCampaignId(null);
     setPreviewOutput(null);

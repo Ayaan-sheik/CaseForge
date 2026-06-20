@@ -123,6 +123,7 @@ const styles = StyleSheet.create({
 
 /** Render `**bold**` markers from the synthesized results text. */
 function renderBoldMarkers(text: string) {
+  if (typeof text !== 'string') return null;
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**') ? (
       <Text key={i} style={styles.bold}>

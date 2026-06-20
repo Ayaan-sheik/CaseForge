@@ -38,6 +38,11 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const startTimeRef = useRef(0);
   const durationRef = useRef(0);
   const audioUrlRef = useRef<string | null>(null);
+  // Set when the user releases before the async getUserMedia/recorder setup
+  // finishes, so startRecording can stop immediately instead of stranding the
+  // mic stream with no release event to stop it.
+  const pendingStopRef = useRef(false);
+  const continuingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,7 +71,12 @@ export default function RecordPage({ params }: { params: { token: string } }) {
 
   const stopRecording = useCallback(() => {
     const recorder = recorderRef.current;
-    if (!recorder || recorder.state !== 'recording') return;
+    if (!recorder || recorder.state !== 'recording') {
+      // Released before the recorder was ready — remember it so the in-flight
+      // startRecording stops as soon as it finishes wiring up.
+      pendingStopRef.current = true;
+      return;
+    }
     durationRef.current = Math.round((Date.now() - startTimeRef.current) / 1000);
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     recorder.stop();
@@ -75,6 +85,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const startRecording = useCallback(async () => {
     if (phase !== 'idle') return;
     setError('');
+    pendingStopRef.current = false;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -121,6 +132,13 @@ export default function RecordPage({ params }: { params: { token: string } }) {
       setElapsed(seconds);
       if (seconds >= MAX_SECONDS) stopRecording();
     }, 200);
+
+    // The user already released while we were setting up — stop immediately
+    // rather than leaving the mic open.
+    if (pendingStopRef.current) {
+      pendingStopRef.current = false;
+      stopRecording();
+    }
   }, [phase, cleanupAudioGraph, stopRecording]);
 
   function discardTake() {
@@ -163,6 +181,8 @@ export default function RecordPage({ params }: { params: { token: string } }) {
       setIndex(index + 1);
       setPhase('idle');
     } else {
+      if (continuingRef.current) return;
+      continuingRef.current = true;
       await fetch(`/api/interview/${params.token}/complete`, { method: 'POST' }).catch(() => {});
       router.push(`/interview/${params.token}/done`);
     }

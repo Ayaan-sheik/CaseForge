@@ -146,20 +146,43 @@ export async function POST(
     );
   }
 
-  await supabase
+  const { error: rawWriteError } = await supabase
     .from('responses')
     .update({ transcript_raw: rawTranscript })
     .eq('id', responseRow.id);
+  if (rawWriteError) {
+    console.error('Failed to persist raw transcript:', rawWriteError);
+  }
 
   // ── 4. Clean transcript with LLM ───────────────────────────────────────────
   const cleanedTranscript = await cleanTranscript(rawTranscript).catch(
     () => rawTranscript // fall back to raw if cleaning fails
   );
 
-  await supabase
+  const { error: cleanWriteError } = await supabase
     .from('responses')
     .update({ transcript_clean: cleanedTranscript })
     .eq('id', responseRow.id);
+  if (cleanWriteError) {
+    // This is the field `/complete` reads to decide the interview is done; a
+    // silent failure here would stall synthesis forever, so report it.
+    console.error('Failed to persist cleaned transcript:', cleanWriteError);
+    return NextResponse.json(
+      { error: 'Could not save your answer — please try again.' },
+      { status: 500 }
+    );
+  }
+
+  // A previous question's transcription may have failed and parked the whole
+  // campaign in `error`. This upload succeeded, so lift it back to `recording`
+  // — otherwise `/complete` (which only acts on `recording`) can never fire
+  // synthesis and the interview stays permanently wedged.
+  if (campaign.status === 'error') {
+    await supabase
+      .from('campaigns')
+      .update({ status: 'recording', error_message: null })
+      .eq('id', campaign.id);
+  }
 
   return NextResponse.json({ success: true, transcript: cleanedTranscript });
 }

@@ -1,8 +1,11 @@
 /** "3 days ago"-style relative timestamps for the dashboard. */
 export function relativeTime(dateString: string): string {
   const date = new Date(dateString);
-  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  const ms = date.getTime();
+  if (Number.isNaN(ms)) return '';
+  const seconds = Math.floor((Date.now() - ms) / 1000);
 
+  // Clock skew / future dates read as "just now" rather than negative units.
   if (seconds < 60) return 'just now';
 
   const units: [number, string][] = [

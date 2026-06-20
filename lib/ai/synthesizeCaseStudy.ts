@@ -77,6 +77,28 @@ Return ONLY a valid JSON object (no markdown, no preamble):
     const text = await generateText(SYSTEM_PROMPT, userPrompt, true);
     const caseStudy = parseJsonResponse<SynthesisResult>(text);
 
+    // The model can omit fields; bail with a clear error rather than writing
+    // `undefined` to the DB or crashing the PDF renderer downstream.
+    const requiredFields: (keyof SynthesisResult)[] = [
+      'title',
+      'summary',
+      'challenge',
+      'solution',
+      'results',
+      'testimonial_quote',
+    ];
+    const missing = requiredFields.filter(
+      (f) => typeof caseStudy?.[f] !== 'string' || !(caseStudy[f] as string).trim()
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        `AI response missing required field(s): ${missing.join(', ')}`
+      );
+    }
+    if (!Array.isArray(caseStudy.linkedin_quotes)) {
+      caseStudy.linkedin_quotes = [];
+    }
+
     // Keep an already-published slug stable across "Retry Processing" runs.
     const { data: existing } = await supabase
       .from('outputs')

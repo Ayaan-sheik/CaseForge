@@ -14,6 +14,7 @@ interface OutputTabsProps {
 }
 
 export function OutputTabs({ output, appUrl }: OutputTabsProps) {
+  const hasWebPage = Boolean(output.web_slug);
   const publicLink = `${appUrl}/case-study/${output.web_slug}`;
   const quotes = output.linkedin_quotes ?? [];
 
@@ -46,22 +47,30 @@ export function OutputTabs({ output, appUrl }: OutputTabsProps) {
       </TabsContent>
 
       <TabsContent value="web" className="space-y-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <CopyButton value={publicLink} variant="outline" size="sm">
-            Copy Public Link
-          </CopyButton>
-          <a href={publicLink} target="_blank" rel="noreferrer">
-            <Button variant="outline" size="sm">
-              <ExternalLink className="h-4 w-4" />
-              Open in new tab
-            </Button>
-          </a>
-        </div>
-        <iframe
-          src={publicLink}
-          title="Public case study preview"
-          className="h-[640px] w-full rounded-[20px] border border-line bg-surface shadow-sm"
-        />
+        {hasWebPage ? (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <CopyButton value={publicLink} variant="outline" size="sm">
+                Copy Public Link
+              </CopyButton>
+              <a href={publicLink} target="_blank" rel="noreferrer">
+                <Button variant="outline" size="sm">
+                  <ExternalLink className="h-4 w-4" />
+                  Open in new tab
+                </Button>
+              </a>
+            </div>
+            <iframe
+              src={publicLink}
+              title="Public case study preview"
+              className="h-[640px] w-full rounded-[20px] border border-line bg-surface shadow-sm"
+            />
+          </>
+        ) : (
+          <p className="text-sm text-ink-secondary">
+            No public page available yet.
+          </p>
+        )}
       </TabsContent>
 
       <TabsContent value="linkedin" className="space-y-4">
@@ -70,7 +79,7 @@ export function OutputTabs({ output, appUrl }: OutputTabsProps) {
         </p>
         <div className="space-y-4">
           {quotes.map((quote, index) => (
-            <LinkedInQuoteCard key={index} quote={quote} />
+            <LinkedInQuoteCard key={quote.quote ?? index} quote={quote} />
           ))}
         </div>
       </TabsContent>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Check, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 
@@ -12,6 +12,15 @@ export function CopyMagicLinkButton({
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear the pending "copied" reset if the card unmounts (e.g. after delete +
+  // router.refresh) to avoid a setState-after-unmount.
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   async function handleCopy(e: React.MouseEvent) {
     e.preventDefault();
@@ -19,7 +28,8 @@ export function CopyMagicLinkButton({
     try {
       await navigator.clipboard.writeText(magicLink);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => setCopied(false), 2000);
     } catch {
       // Clipboard unavailable
     }

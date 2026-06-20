@@ -60,7 +60,7 @@ export default function NewCampaignPage() {
     });
     const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
+    if (!res.ok || !Array.isArray(data.questions)) {
       setError(data.error ?? 'Something went wrong — please try again.');
       setLoading(false);
       return;
@@ -84,7 +84,7 @@ export default function NewCampaignPage() {
     });
     const data = await res.json().catch(() => ({}));
 
-    if (!res.ok) {
+    if (!res.ok || !data.question?.text) {
       setError(data.error ?? 'Regeneration failed — please try again.');
     } else {
       setQuestions((prev) => prev.map((q) => (q.id === questionId ? data.question : q)));

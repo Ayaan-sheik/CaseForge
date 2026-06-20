@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Mail, MessageSquare, ChevronDown, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils/cn';
 import { CopyButton } from '@/components/ui/copy-button';
@@ -52,8 +53,26 @@ export function SendReminderModal({
 }: SendReminderModalProps) {
   const [emailOpen, setEmailOpen] = useState(true);
   const [smsOpen, setSmsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => setMounted(true), []);
+
+  // Lock background scroll and allow Escape-to-close while open.
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen || !mounted) return null;
 
   const { emailSubject, emailBody, smsBody } = buildTemplates(
     clientName,
@@ -61,21 +80,21 @@ export function SendReminderModal({
     stalledInfo.reason
   );
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-label={`Send reminder to ${clientName}`}
     >
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-ink/30 backdrop-blur-sm"
+        className="absolute inset-0 bg-ink/50 backdrop-blur-md"
         onClick={onClose}
       />
 
       {/* Panel */}
-      <div className="animate-fade-up relative z-10 w-full max-w-lg rounded-t-[24px] bg-paper shadow-2xl sm:rounded-[24px]">
+      <div className="animate-fade-up relative z-10 w-full max-w-lg rounded-[24px] bg-paper shadow-2xl">
         {/* Header */}
         <div className="flex items-start justify-between border-b border-line px-6 py-5">
           <div>
@@ -176,6 +195,7 @@ export function SendReminderModal({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
