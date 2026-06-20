@@ -287,7 +287,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
             <div className="flex w-full flex-col gap-3 sm:flex-row">
               <Button
                 variant="outline"
-                size="lg"
+                size="xl"
                 className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
                 onClick={handleReRecord}
               >
@@ -295,11 +295,11 @@ export default function RecordPage({ params }: { params: { token: string } }) {
                 Re-record
               </Button>
               <Button
-                size="lg"
+                size="xl"
                 className="flex-1 bg-white text-ink hover:bg-paper"
                 onClick={handleSubmit}
               >
-                Submit answer →
+                Review answer →
               </Button>
             </div>
           </div>
@@ -319,7 +319,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
             <div className="flex w-full flex-col gap-3 sm:flex-row">
               <Button
                 variant="outline"
-                size="lg"
+                size="xl"
                 className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
                 onClick={handleTranscriptReRecord}
               >
@@ -327,7 +327,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
                 Re-record
               </Button>
               <Button
-                size="lg"
+                size="xl"
                 className="flex-1 bg-white text-ink hover:bg-paper"
                 onClick={handleContinue}
               >

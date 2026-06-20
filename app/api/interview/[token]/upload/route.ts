@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { waitUntil } from '@vercel/functions';
 import { createAdminClient } from '@/lib/supabase/server';
 import { transcribeAudio } from '@/lib/ai/groq';
 import { cleanTranscript } from '@/lib/ai/cleanTranscript';
-import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
 import type { Campaign, Question } from '@/lib/types';
 
 // Whisper + LLM cleaning + the synthesis tail can exceed Vercel's default
@@ -162,44 +160,6 @@ export async function POST(
     .from('responses')
     .update({ transcript_clean: cleanedTranscript })
     .eq('id', responseRow.id);
-
-  // ── 5. Check if all questions are done; trigger synthesis if so ────────────
-  const { data: allResponses } = await supabase
-    .from('responses')
-    .select('question_id, transcript_clean')
-    .eq('campaign_id', campaign.id);
-
-  const cleanedIds = new Set(
-    (allResponses ?? [])
-      .filter((r) => r.transcript_clean)
-      .map((r) => r.question_id)
-  );
-
-  const allDone =
-    questions.length > 0 && questions.every((q) => cleanedIds.has(q.id));
-
-  if (allDone) {
-    // Atomic lock: only the request that flips status recording→processing fires synthesis.
-    // Concurrent uploads that reach here simultaneously will get null back and skip it.
-    const { data: locked } = await supabase
-      .from('campaigns')
-      .update({ status: 'processing' })
-      .eq('id', campaign.id)
-      .eq('status', 'recording')
-      .select('id')
-      .maybeSingle();
-
-    if (locked) {
-      // waitUntil keeps the serverless function alive after the response is
-      // returned — without it, Vercel freezes the lambda and synthesis dies
-      // mid-flight, leaving the campaign stuck in 'processing'.
-      waitUntil(
-        synthesizeCaseStudy(campaign.id).catch((err) =>
-          console.error('Synthesis failed:', err)
-        )
-      );
-    }
-  }
 
   return NextResponse.json({ success: true, transcript: cleanedTranscript });
 }

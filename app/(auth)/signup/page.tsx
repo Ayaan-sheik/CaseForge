@@ -54,20 +54,18 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-paper px-7 py-10">
-      {/* Wordmark */}
-      <div className="mx-auto w-full max-w-sm">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-[9px] font-display text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline"
-        >
-          <span className="h-[10px] w-[10px] flex-shrink-0 rounded-full bg-accent" />
-          CaseForge
-        </Link>
-      </div>
-
-      {/* Card */}
-      <div className="mx-auto mt-14 w-full max-w-sm">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-paper px-7 py-10">
+      <div className="w-full max-w-sm">
+        {/* Wordmark */}
+        <div className="mb-8 flex justify-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-[9px] font-display text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline"
+          >
+            <span className="h-[10px] w-[10px] flex-shrink-0 rounded-full bg-accent" />
+            CaseForge
+          </Link>
+        </div>
         {needsConfirmation ? (
           <div className="animate-scale-in rounded-[20px] border border-line bg-white p-8 text-center shadow-[0_1px_2px_rgba(25,21,16,0.04),0_8px_24px_-12px_rgba(25,21,16,0.1)]">
             <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft">

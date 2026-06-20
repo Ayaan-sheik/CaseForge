@@ -37,20 +37,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-paper px-7 py-10">
-      {/* Wordmark */}
-      <div className="mx-auto w-full max-w-sm">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-[9px] font-display text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline"
-        >
-          <span className="h-[10px] w-[10px] flex-shrink-0 rounded-full bg-accent" />
-          CaseForge
-        </Link>
-      </div>
-
-      {/* Card */}
-      <div className="mx-auto mt-14 w-full max-w-sm">
+    <main className="flex min-h-screen flex-col items-center justify-center bg-paper px-7 py-10">
+      <div className="w-full max-w-sm">
+        {/* Wordmark */}
+        <div className="mb-8 flex justify-center">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-[9px] font-display text-[19px] font-semibold tracking-[-0.02em] text-ink no-underline"
+          >
+            <span className="h-[10px] w-[10px] flex-shrink-0 rounded-full bg-accent" />
+            CaseForge
+          </Link>
+        </div>
         <div className="animate-fade-up rounded-[20px] border border-line bg-white p-8 shadow-[0_1px_2px_rgba(25,21,16,0.04),0_8px_24px_-12px_rgba(25,21,16,0.1)]">
           <p className="eyebrow">Welcome back</p>
           <h1 className="mt-4 font-display text-[26px] font-semibold leading-tight tracking-[-0.02em]">
