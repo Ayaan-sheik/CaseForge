@@ -5,7 +5,7 @@ type CookieToSet = { name: string; value: string; options: CookieOptions };
 
 // Routes that require a logged-in creator. /interview/*, /case-study/*, and
 // /api/* are intentionally absent — they're public or handle their own auth.
-const PROTECTED_PREFIXES = ['/dashboard', '/campaigns'];
+const PROTECTED_PREFIXES = ['/dashboard', '/campaigns', '/settings'];
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -50,6 +50,29 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
+  }
+
+  // Onboarding gate: a logged-in creator must finish onboarding before reaching
+  // the app. Conversely, once complete they shouldn't see /onboarding again.
+  if (user && (isProtected || path === '/onboarding')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('onboarding_complete')
+      .eq('id', user.id)
+      .single();
+
+    const onboarded = profile?.onboarding_complete ?? false;
+
+    if (!onboarded && path !== '/onboarding') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/onboarding';
+      return NextResponse.redirect(url);
+    }
+    if (onboarded && path === '/onboarding') {
+      const url = request.nextUrl.clone();
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
   }
 
   return supabaseResponse;

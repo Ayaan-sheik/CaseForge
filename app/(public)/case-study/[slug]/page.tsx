@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/server';
-import type { Output } from '@/lib/types';
+import type { CaseStudy, Output } from '@/lib/types';
 
 interface CaseStudyRecord extends Output {
   campaigns: {
@@ -22,14 +22,13 @@ async function getCaseStudy(slug: string): Promise<CaseStudyRecord | null> {
 }
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
-  const caseStudy = await getCaseStudy(params.slug);
-  if (!caseStudy) return { title: 'Case Study — CaseForge' };
-  const title = caseStudy.case_study_title ?? 'Customer Success Story';
-  const description = caseStudy.case_study_summary ?? '';
+  const record = await getCaseStudy(params.slug);
+  const cs = record?.case_study;
+  if (!cs) return { title: 'Case Study — CaseForge' };
   return {
-    title,
-    description,
-    openGraph: { title, description, type: 'article' },
+    title: cs.title,
+    description: cs.exec_summary,
+    openGraph: { title: cs.title, description: cs.exec_summary, type: 'article' },
   };
 }
 
@@ -42,23 +41,21 @@ function initials(name: string): string {
     .join('');
 }
 
-function renderBoldMarkers(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**') ? (
-      <strong key={i} className="font-semibold text-ink">
-        {part.slice(2, -2)}
-      </strong>
-    ) : (
-      <span key={i}>{part}</span>
-    )
-  );
-}
-
 export default async function CaseStudyPage({ params }: { params: { slug: string } }) {
-  const caseStudy = await getCaseStudy(params.slug);
-  if (!caseStudy || !caseStudy.campaigns) notFound();
+  const record = await getCaseStudy(params.slug);
+  if (!record || !record.campaigns || !record.case_study) notFound();
 
-  const clientName = caseStudy.campaigns.client_name;
+  const cs: CaseStudy = record.case_study;
+  const clientName = record.campaigns.client_name;
+
+  const snapCells = [
+    cs.snapshot?.industry && { label: 'Industry', value: cs.snapshot.industry },
+    cs.snapshot?.size && { label: 'Company size', value: cs.snapshot.size },
+    cs.snapshot?.headline_metric && { label: 'Headline result', value: cs.snapshot.headline_metric },
+  ].filter(Boolean) as { label: string; value: string }[];
+
+  const stats = cs.results?.stats ?? [];
+  const quotes = cs.pull_quotes ?? [];
 
   return (
     <div className="min-h-screen bg-paper">
@@ -81,69 +78,125 @@ export default async function CaseStudyPage({ params }: { params: { slug: string
           {initials(clientName)}
         </div>
 
-        <p
-          className="animate-fade-up eyebrow mt-8"
-          style={{ animationDelay: '80ms' }}
-        >
-          Case study · {caseStudy.campaigns.service_provided}
+        <p className="animate-fade-up eyebrow mt-8" style={{ animationDelay: '80ms' }}>
+          Case study · {record.campaigns.service_provided}
         </p>
 
         <h1
           className="animate-fade-up mt-5 font-display text-[clamp(28px,4vw,40px)] font-semibold leading-tight tracking-[-0.025em]"
           style={{ animationDelay: '160ms' }}
         >
-          {caseStudy.case_study_title}
+          {cs.title}
         </h1>
 
-        {caseStudy.case_study_summary && (
-          <p
-            className="animate-fade-up mt-6 max-w-[60ch] font-editorial text-[20px] italic leading-relaxed text-ink-secondary"
-            style={{ animationDelay: '260ms' }}
+        {/* Snapshot strip */}
+        {snapCells.length > 0 && (
+          <div
+            className="animate-fade-up mt-8 grid grid-cols-3 gap-4 rounded-[16px] border border-line bg-white p-5"
+            style={{ animationDelay: '220ms' }}
           >
-            {caseStudy.case_study_summary}
+            {snapCells.map((c) => (
+              <div key={c.label}>
+                <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-secondary">
+                  {c.label}
+                </p>
+                <p className="mt-1.5 font-display text-[16px] font-semibold leading-tight text-ink">
+                  {c.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Executive summary */}
+        {cs.exec_summary && (
+          <p
+            className="animate-fade-up mt-8 max-w-[60ch] font-editorial text-[20px] italic leading-relaxed text-ink-secondary"
+            style={{ animationDelay: '300ms' }}
+          >
+            {cs.exec_summary}
           </p>
         )}
 
-        {caseStudy.case_study_challenge && (
-          <section className="animate-fade-up mt-12" style={{ animationDelay: '340ms' }}>
-            <h2 className="eyebrow">The Challenge</h2>
-            <p className="mt-4 max-w-[65ch] text-[16px] leading-relaxed text-ink-secondary">
-              {caseStudy.case_study_challenge}
+        {/* The Problem */}
+        {cs.problem && (
+          <section className="animate-fade-up mt-12">
+            <h2 className="eyebrow">The Problem</h2>
+            <p className="mt-4 max-w-[65ch] whitespace-pre-line text-[16px] leading-relaxed text-ink-secondary">
+              {cs.problem}
             </p>
           </section>
         )}
 
-        {caseStudy.case_study_solution && (
-          <section className="animate-fade-up mt-12" style={{ animationDelay: '420ms' }}>
+        {/* The Solution */}
+        {cs.solution && (
+          <section className="animate-fade-up mt-12">
             <h2 className="eyebrow">The Solution</h2>
-            <p className="mt-4 max-w-[65ch] text-[16px] leading-relaxed text-ink-secondary">
-              {caseStudy.case_study_solution}
+            <p className="mt-4 max-w-[65ch] whitespace-pre-line text-[16px] leading-relaxed text-ink-secondary">
+              {cs.solution}
             </p>
           </section>
         )}
 
-        {caseStudy.case_study_results && (
-          <section className="animate-fade-up mt-12" style={{ animationDelay: '500ms' }}>
+        {/* The Results */}
+        {(stats.length > 0 || cs.results?.prose) && (
+          <section className="animate-fade-up mt-12">
             <h2 className="eyebrow">The Results</h2>
-            <p className="mt-4 max-w-[65ch] text-[16px] leading-relaxed text-ink-secondary">
-              {renderBoldMarkers(caseStudy.case_study_results)}
-            </p>
+            {stats.length > 0 && (
+              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                {stats.map((s, i) => (
+                  <div key={i} className="rounded-[16px] border border-line bg-white p-5">
+                    <p className="font-display text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">
+                      {s.value}
+                    </p>
+                    <p className="mt-2 text-[13px] leading-snug text-ink-secondary">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            {cs.results?.prose && (
+              <p className="mt-5 max-w-[65ch] text-[16px] leading-relaxed text-ink-secondary">
+                {cs.results.prose}
+              </p>
+            )}
           </section>
         )}
 
-        {/* Voices-style testimonial */}
-        {caseStudy.testimonial_quote && (
-          <figure
-            className="animate-fade-up mt-16 border-t border-line pt-14 text-center"
-            style={{ animationDelay: '580ms' }}
-          >
-            <blockquote className="mx-auto max-w-[21em] font-editorial text-[clamp(22px,3vw,30px)] font-medium italic leading-[1.4] tracking-[-0.01em]">
-              &ldquo;{caseStudy.testimonial_quote}&rdquo;
-            </blockquote>
-            <figcaption className="mt-6 font-mono text-[12.5px] uppercase tracking-[0.1em] text-ink-secondary">
-              — {clientName}
-            </figcaption>
-          </figure>
+        {/* In their words — verbatim pull quotes */}
+        {quotes.length > 0 && (
+          <section className="animate-fade-up mt-16 border-t border-line pt-14">
+            <div className="space-y-10">
+              {quotes.map((q, i) => (
+                <figure key={i} className="text-center">
+                  <blockquote className="mx-auto max-w-[24em] font-editorial text-[clamp(20px,2.6vw,26px)] font-medium italic leading-[1.45] tracking-[-0.01em]">
+                    &ldquo;{q}&rdquo;
+                  </blockquote>
+                  <figcaption className="mt-5 font-mono text-[12px] uppercase tracking-[0.1em] text-ink-secondary">
+                    — {clientName}
+                  </figcaption>
+                </figure>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* About the company */}
+        {cs.about_company && (
+          <section className="animate-fade-up mt-16 rounded-[16px] border border-line bg-white p-6">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-secondary">
+              About {clientName}
+            </h2>
+            <p className="mt-3 text-[15px] leading-relaxed text-ink-secondary">{cs.about_company}</p>
+          </section>
+        )}
+
+        {/* CTA */}
+        {cs.cta && (
+          <section className="animate-fade-up mt-12 text-center">
+            <p className="mx-auto max-w-[40ch] font-display text-[20px] font-semibold leading-snug tracking-[-0.01em]">
+              {cs.cta}
+            </p>
+          </section>
         )}
 
         {/* Footer */}

@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { generateQuestions } from '@/lib/ai/generateQuestions';
+import { summarizeBrief } from '@/lib/ai/buildBrief';
+import type { AgencyContext } from '@/lib/types';
 
 /**
  * POST /api/campaigns
- * Body: { clientName, serviceProvided }
- * Creates a draft campaign with 3 AI-generated questions.
+ * Body: {
+ *   clientName, clientIndustry, clientSize,
+ *   briefAnswers: { problem, what_delivered, what_changed }
+ * }
+ * Structures the engagement brief, generates 4-5 core questions grounded in the
+ * creator's global context + brief, and creates a draft campaign.
  */
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -19,23 +25,37 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null);
   const clientName = typeof body?.clientName === 'string' ? body.clientName.trim() : '';
-  const serviceProvided =
-    typeof body?.serviceProvided === 'string' ? body.serviceProvided.trim() : '';
+  const clientIndustry =
+    typeof body?.clientIndustry === 'string' ? body.clientIndustry.trim() : '';
+  const clientSize = typeof body?.clientSize === 'string' ? body.clientSize.trim() : '';
+  const briefAnswers =
+    body?.briefAnswers && typeof body.briefAnswers === 'object' ? body.briefAnswers : null;
 
-  if (!clientName || !serviceProvided) {
+  if (!clientName || !briefAnswers) {
     return NextResponse.json(
-      { error: 'clientName and serviceProvided are required' },
+      { error: 'clientName and briefAnswers are required' },
       { status: 400 }
     );
   }
 
+  // Global agency context (best-effort — questions still work without it).
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('context')
+    .eq('id', user.id)
+    .single();
+  const context = (profile?.context as AgencyContext | null) ?? null;
+
+  let brief;
   let questions;
   try {
-    questions = await generateQuestions(clientName, serviceProvided);
+    brief = await summarizeBrief(briefAnswers as Record<string, string>);
+    const serviceProvided = brief.what_delivered || 'their service';
+    questions = await generateQuestions(clientName, serviceProvided, context, brief);
   } catch (err) {
-    console.error('Question generation failed:', err);
+    console.error('Brief/question generation failed:', err);
     return NextResponse.json(
-      { error: 'Question generation failed — please try again' },
+      { error: 'Could not build the campaign — please try again' },
       { status: 502 }
     );
   }
@@ -45,7 +65,10 @@ export async function POST(request: Request) {
     .insert({
       creator_id: user.id,
       client_name: clientName,
-      service_provided: serviceProvided,
+      service_provided: brief.what_delivered || 'their service',
+      client_industry: clientIndustry || null,
+      client_size: clientSize || null,
+      brief,
       status: 'draft',
       questions,
     })
@@ -54,10 +77,7 @@ export async function POST(request: Request) {
 
   if (error || !campaign) {
     console.error('Campaign insert failed:', error);
-    return NextResponse.json(
-      { error: 'Could not create campaign' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Could not create campaign' }, { status: 500 });
   }
 
   return NextResponse.json({

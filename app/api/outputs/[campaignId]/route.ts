@@ -80,7 +80,7 @@ export async function POST(
       .eq('campaign_id', params.campaignId)
       .maybeSingle<Output>();
 
-    if (!output?.case_study_title) {
+    if (!output?.case_study) {
       return NextResponse.json(
         { error: 'No case study to regenerate — run synthesis first' },
         { status: 400 }
@@ -89,12 +89,7 @@ export async function POST(
 
     try {
       const pdfUrl = await generateAndUploadPDF(params.campaignId, {
-        title: output.case_study_title,
-        summary: output.case_study_summary ?? '',
-        challenge: output.case_study_challenge ?? '',
-        solution: output.case_study_solution ?? '',
-        results: output.case_study_results ?? '',
-        testimonialQuote: output.testimonial_quote ?? '',
+        caseStudy: output.case_study,
         clientName: result.campaign.client_name,
       });
 

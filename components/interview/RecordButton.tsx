@@ -6,21 +6,15 @@ import { cn } from '@/lib/utils/cn';
 interface RecordButtonProps {
   recording: boolean;
   disabled?: boolean;
-  onPressStart: () => void;
-  onPressEnd: () => void;
+  onToggle: () => void;
 }
 
 /**
- * Hold-to-record button. Pointer events give unified mouse + touch behavior;
- * pointer capture keeps the release event even if the finger drifts off the
- * button.
+ * Tap-to-record button: one tap starts, a second tap stops. `onPointerDown`
+ * fires once per tap on both mouse and touch, so there's no hold-and-release
+ * ambiguity (a click no longer starts-and-instantly-stops).
  */
-export function RecordButton({
-  recording,
-  disabled,
-  onPressStart,
-  onPressEnd,
-}: RecordButtonProps) {
+export function RecordButton({ recording, disabled, onToggle }: RecordButtonProps) {
   return (
     <div className="flex flex-col items-center gap-4">
       <div className="relative">
@@ -36,14 +30,11 @@ export function RecordButton({
         <button
           type="button"
           disabled={disabled}
-          aria-label={recording ? 'Release to stop recording' : 'Hold to record'}
+          aria-label={recording ? 'Tap to stop recording' : 'Tap to record'}
           onPointerDown={(e) => {
             e.preventDefault();
-            e.currentTarget.setPointerCapture(e.pointerId);
-            onPressStart();
+            onToggle();
           }}
-          onPointerUp={() => onPressEnd()}
-          onPointerCancel={() => onPressEnd()}
           onContextMenu={(e) => e.preventDefault()}
           className={cn(
             'relative flex h-[136px] w-[136px] select-none items-center justify-center rounded-full transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/50 disabled:opacity-50',
@@ -57,7 +48,7 @@ export function RecordButton({
         </button>
       </div>
       <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-paper/60">
-        {recording ? 'Release to stop' : 'Hold to record'}
+        {recording ? 'Tap to stop' : 'Tap to record'}
       </p>
     </div>
   );

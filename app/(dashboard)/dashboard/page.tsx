@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   const [{ data: campaigns }, { data: profile }] = await Promise.all([
     supabase
       .from('campaigns')
-      .select('*, responses(id, duration_seconds)')
+      .select('*, responses(id, duration_seconds, audio_url)')
       .eq('creator_id', user!.id)
       .order('created_at', { ascending: false })
       .returns<CampaignWithResponses[]>(),

@@ -3,8 +3,16 @@ import Groq from 'groq-sdk';
 export const GROQ_MODEL =
   process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
 
+// Synthesis is the quality-critical stage. Kept as its own env var so the model
+// can be swapped (e.g. to a premium provider) without touching the chat stages.
+// Defaults to the same Groq model in v1.
+const GROQ_SYNTHESIS_MODEL = process.env.GROQ_SYNTHESIS_MODEL ?? GROQ_MODEL;
+
 const GROQ_WHISPER_MODEL =
   process.env.GROQ_WHISPER_MODEL ?? 'whisper-large-v3';
+
+/** Which model a call should use. 'chat' = fast/cheap; 'synthesis' = quality. */
+export type LlmPurpose = 'chat' | 'synthesis';
 
 let client: Groq | null = null;
 
@@ -15,18 +23,23 @@ function getGroq(): Groq {
   return client;
 }
 
-/** Chat completion returning plain text. Pass json=true to enable JSON mode. */
+/**
+ * Chat completion returning plain text. Pass json=true to enable JSON mode.
+ * `purpose` selects the model: 'chat' (default) for fast/cheap stages,
+ * 'synthesis' for the quality-critical case-study generation.
+ */
 export async function generateText(
   system: string,
   user: string,
-  json = false
+  json = false,
+  purpose: LlmPurpose = 'chat'
 ): Promise<string> {
   const messages: Groq.Chat.ChatCompletionMessageParam[] = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: user });
 
   const completion = await getGroq().chat.completions.create({
-    model: GROQ_MODEL,
+    model: purpose === 'synthesis' ? GROQ_SYNTHESIS_MODEL : GROQ_MODEL,
     messages,
     ...(json ? { response_format: { type: 'json_object' } } : {}),
   });

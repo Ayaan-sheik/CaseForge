@@ -9,9 +9,22 @@ import { QuestionCard } from '@/components/interview/QuestionCard';
 import { RecordButton } from '@/components/interview/RecordButton';
 import { WaveformVisualizer } from '@/components/interview/WaveformVisualizer';
 import { formatDuration } from '@/lib/utils/formatDuration';
-import type { Question } from '@/lib/types';
 
-type Phase = 'loading' | 'invalid' | 'idle' | 'recording' | 'reviewing' | 'uploading' | 'transcribed';
+type Phase =
+  | 'loading'
+  | 'invalid'
+  | 'idle'
+  | 'recording'
+  | 'reviewing'
+  | 'uploading'
+  | 'transcribed';
+
+interface CurrentQuestion {
+  sequence: number;
+  text: string;
+  isFollowup: boolean;
+  coreNumber: number;
+}
 
 const MAX_SECONDS = 180;
 const WARN_SECONDS = 150;
@@ -20,15 +33,17 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const router = useRouter();
 
   const [phase, setPhase] = useState<Phase>('loading');
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [index, setIndex] = useState(0);
+  const [current, setCurrent] = useState<CurrentQuestion | null>(null);
+  const [coreCount, setCoreCount] = useState(0);
+  const [nextQuestion, setNextQuestion] = useState<CurrentQuestion | null>(null);
+  const [interviewDone, setInterviewDone] = useState(false);
+
   const [elapsed, setElapsed] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
   const [transcript, setTranscript] = useState('');
-  const isLastQuestion = index === questions.length - 1;
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -38,11 +53,14 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const startTimeRef = useRef(0);
   const durationRef = useRef(0);
   const audioUrlRef = useRef<string | null>(null);
-  // Set when the user releases before the async getUserMedia/recorder setup
-  // finishes, so startRecording can stop immediately instead of stranding the
-  // mic stream with no release event to stop it.
-  const pendingStopRef = useRef(false);
   const continuingRef = useRef(false);
+
+  const finish = useCallback(async () => {
+    if (continuingRef.current) return;
+    continuingRef.current = true;
+    await fetch(`/api/interview/${params.token}/complete`, { method: 'POST' }).catch(() => {});
+    router.push(`/interview/${params.token}/done`);
+  }, [params.token, router]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,15 +69,22 @@ export default function RecordPage({ params }: { params: { token: string } }) {
         if (!res.ok) throw new Error('not found');
         const data = await res.json();
         if (cancelled) return;
-        if (!Array.isArray(data.questions) || data.questions.length === 0) throw new Error('no questions');
-        setQuestions(data.questions);
+        if (data.done || !data.current) {
+          // Interview already concluded — wrap it up.
+          finish();
+          return;
+        }
+        setCoreCount(data.coreCount ?? 0);
+        setCurrent(data.current as CurrentQuestion);
         setPhase('idle');
       })
       .catch(() => {
         if (!cancelled) setPhase('invalid');
       });
-    return () => { cancelled = true; };
-  }, [params.token]);
+    return () => {
+      cancelled = true;
+    };
+  }, [params.token, finish]);
 
   const cleanupAudioGraph = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -71,21 +96,20 @@ export default function RecordPage({ params }: { params: { token: string } }) {
 
   const stopRecording = useCallback(() => {
     const recorder = recorderRef.current;
-    if (!recorder || recorder.state !== 'recording') {
-      // Released before the recorder was ready — remember it so the in-flight
-      // startRecording stops as soon as it finishes wiring up.
-      pendingStopRef.current = true;
-      return;
-    }
+    if (!recorder || recorder.state !== 'recording') return;
+    // Ignore an accidental near-instant second tap (double-tap) — keep recording.
+    if (Date.now() - startTimeRef.current < 600) return;
     durationRef.current = Math.round((Date.now() - startTimeRef.current) / 1000);
-    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     recorder.stop();
   }, []);
 
   const startRecording = useCallback(async () => {
     if (phase !== 'idle') return;
     setError('');
-    pendingStopRef.current = false;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -103,17 +127,25 @@ export default function RecordPage({ params }: { params: { token: string } }) {
       source.connect(analyserNode);
       audioContextRef.current = audioContext;
       setAnalyser(analyserNode);
-    } catch { /* cosmetic — keep recording */ }
+    } catch {
+      /* cosmetic — keep recording */
+    }
 
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : undefined;
     const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
 
     chunksRef.current = [];
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
     recorder.onstop = () => {
       const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
       cleanupAudioGraph();
-      if (blob.size === 0) { setPhase('idle'); setElapsed(0); return; }
+      if (blob.size === 0) {
+        setPhase('idle');
+        setElapsed(0);
+        return;
+      }
       const url = URL.createObjectURL(blob);
       audioUrlRef.current = url;
       setAudioBlob(blob);
@@ -132,14 +164,12 @@ export default function RecordPage({ params }: { params: { token: string } }) {
       setElapsed(seconds);
       if (seconds >= MAX_SECONDS) stopRecording();
     }, 200);
-
-    // The user already released while we were setting up — stop immediately
-    // rather than leaving the mic open.
-    if (pendingStopRef.current) {
-      pendingStopRef.current = false;
-      stopRecording();
-    }
   }, [phase, cleanupAudioGraph, stopRecording]);
+
+  const toggleRecording = useCallback(() => {
+    if (phase === 'idle') startRecording();
+    else if (phase === 'recording') stopRecording();
+  }, [phase, startRecording, stopRecording]);
 
   function discardTake() {
     if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
@@ -149,19 +179,26 @@ export default function RecordPage({ params }: { params: { token: string } }) {
     setElapsed(0);
   }
 
-  function handleReRecord() { discardTake(); setError(''); setPhase('idle'); }
+  function handleReRecord() {
+    discardTake();
+    setError('');
+    setPhase('idle');
+  }
 
   async function handleSubmit() {
-    if (!audioBlob) return;
+    if (!audioBlob || !current) return;
     setError('');
     setPhase('uploading');
 
     const formData = new FormData();
     formData.append('audio', audioBlob, 'recording.webm');
-    formData.append('questionId', questions[index].id);
+    formData.append('sequence', String(current.sequence));
     formData.append('duration', String(durationRef.current));
 
-    const res = await fetch(`/api/interview/${params.token}/upload`, { method: 'POST', body: formData });
+    const res = await fetch(`/api/interview/${params.token}/upload`, {
+      method: 'POST',
+      body: formData,
+    });
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
@@ -172,26 +209,20 @@ export default function RecordPage({ params }: { params: { token: string } }) {
 
     discardTake();
     setTranscript(data.transcript ?? '');
+    setInterviewDone(Boolean(data.done));
+    setNextQuestion((data.nextQuestion as CurrentQuestion) ?? null);
     setPhase('transcribed');
   }
 
-  async function handleContinue() {
-    if (index < questions.length - 1) {
+  function handleContinue() {
+    if (!interviewDone && nextQuestion) {
       setTranscript('');
-      setIndex(index + 1);
+      setCurrent(nextQuestion);
+      setNextQuestion(null);
       setPhase('idle');
     } else {
-      if (continuingRef.current) return;
-      continuingRef.current = true;
-      await fetch(`/api/interview/${params.token}/complete`, { method: 'POST' }).catch(() => {});
-      router.push(`/interview/${params.token}/done`);
+      finish();
     }
-  }
-
-  function handleTranscriptReRecord() {
-    setTranscript('');
-    setError('');
-    setPhase('idle');
   }
 
   useEffect(() => {
@@ -203,7 +234,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
     };
   }, []);
 
-  if (phase === 'loading') {
+  if (phase === 'loading' || !current) {
     return (
       <main className="flex min-h-screen items-center justify-center" style={{ background: 'var(--device)' }}>
         <div className="flex h-10 items-center gap-1.5" aria-hidden="true">
@@ -232,7 +263,6 @@ export default function RecordPage({ params }: { params: { token: string } }) {
     );
   }
 
-  const question = questions[index];
   const showWarning = phase === 'recording' && elapsed >= WARN_SECONDS;
 
   return (
@@ -251,22 +281,24 @@ export default function RecordPage({ params }: { params: { token: string } }) {
           CaseForge
         </Link>
         <div className="rec-chip">
-          {phase === 'recording' ? (
-            <span className="pulse-dot" />
-          ) : phase === 'uploading' ? (
+          {phase === 'recording' || phase === 'uploading' ? (
             <span className="pulse-dot" />
           ) : (
             <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: 'var(--device-line)' }} />
           )}
-          <span>
-            {phase === 'recording' ? 'REC' : phase === 'uploading' ? 'SAVING' : 'READY'}
-          </span>
+          <span>{phase === 'recording' ? 'REC' : phase === 'uploading' ? 'SAVING' : 'READY'}</span>
         </div>
       </div>
 
       {/* Question */}
       <div className="px-6 pt-6">
-        <QuestionCard question={question.text} index={index} total={questions.length} />
+        <QuestionCard
+          question={current.text}
+          coreNumber={current.coreNumber}
+          coreCount={coreCount}
+          isFollowup={current.isFollowup}
+          animKey={current.sequence}
+        />
       </div>
 
       {/* Recording controls */}
@@ -283,10 +315,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
         {phase === 'recording' && (
           <>
             <WaveformVisualizer analyser={analyser} active />
-            <p
-              className="font-mono text-3xl font-semibold tabular-nums"
-              style={{ color: 'var(--device-text)' }}
-            >
+            <p className="font-mono text-3xl font-semibold tabular-nums" style={{ color: 'var(--device-text)' }}>
               {formatDuration(elapsed)}
             </p>
             {showWarning && (
@@ -314,12 +343,8 @@ export default function RecordPage({ params }: { params: { token: string } }) {
                 <RotateCcw className="h-5 w-5" />
                 Re-record
               </Button>
-              <Button
-                size="xl"
-                className="flex-1 bg-white text-ink hover:bg-paper"
-                onClick={handleSubmit}
-              >
-                Review answer →
+              <Button size="xl" className="flex-1 bg-white text-ink hover:bg-paper" onClick={handleSubmit}>
+                Submit answer →
               </Button>
             </div>
           </div>
@@ -336,24 +361,9 @@ export default function RecordPage({ params }: { params: { token: string } }) {
             >
               {transcript || <em style={{ color: 'var(--device-dim)' }}>No transcript available.</em>}
             </div>
-            <div className="flex w-full flex-col gap-4 sm:flex-row">
-              <Button
-                variant="outline"
-                size="xl"
-                className="flex-1 border-white/20 bg-transparent text-white hover:border-white/40 hover:bg-white/10 hover:text-white"
-                onClick={handleTranscriptReRecord}
-              >
-                <RotateCcw className="h-5 w-5" />
-                Re-record
-              </Button>
-              <Button
-                size="xl"
-                className="flex-1 bg-white text-ink hover:bg-paper"
-                onClick={handleContinue}
-              >
-                {isLastQuestion ? 'Submit →' : 'Next question →'}
-              </Button>
-            </div>
+            <Button size="xl" className="w-full bg-white text-ink hover:bg-paper" onClick={handleContinue}>
+              {interviewDone ? 'Finish →' : nextQuestion?.isFollowup ? 'Answer follow-up →' : 'Next question →'}
+            </Button>
           </div>
         )}
 
@@ -380,11 +390,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
       {/* Record button */}
       <div className="flex justify-center pb-8 pt-4">
         {(phase === 'idle' || phase === 'recording') && (
-          <RecordButton
-            recording={phase === 'recording'}
-            onPressStart={startRecording}
-            onPressEnd={stopRecording}
-          />
+          <RecordButton recording={phase === 'recording'} onToggle={toggleRecording} />
         )}
       </div>
     </main>

@@ -1,40 +1,46 @@
 import { cn } from '@/lib/utils/cn';
 
-/** Question display for the recording screen — readable at arm's length. */
+/**
+ * Question display for the recording screen — readable at arm's length.
+ * `coreNumber` is the 1-based core question we're on; `coreCount` the total
+ * core questions. Follow-ups reuse their core's number and show a softer label.
+ */
 export function QuestionCard({
   question,
-  index,
-  total,
+  coreNumber,
+  coreCount,
+  isFollowup,
+  animKey,
 }: {
   question: string;
-  index: number;
-  total: number;
+  coreNumber: number;
+  coreCount: number;
+  isFollowup: boolean;
+  animKey: number;
 }) {
   return (
-    // Keyed by index so each new question re-runs the entrance animation
+    // Keyed so each new question re-runs the entrance animation
     <div
-      key={index}
+      key={animKey}
       className="animate-fade-up flex flex-col items-center gap-6 text-center"
     >
-      <div className="flex items-center gap-3">
-        <div className="flex gap-1.5" aria-hidden="true">
-          {Array.from({ length: total }).map((_, i) => (
-            <span
-              key={i}
-              className={cn(
-                'h-1 w-8 rounded-full transition-colors duration-500',
-                i < index
-                  ? 'bg-paper'
-                  : i === index
-                    ? 'bg-accent'
-                    : 'bg-paper/20'
-              )}
-            />
-          ))}
-        </div>
+      <div className="flex gap-1.5" aria-hidden="true">
+        {Array.from({ length: coreCount }).map((_, i) => (
+          <span
+            key={i}
+            className={cn(
+              'h-1 w-8 rounded-full transition-colors duration-500',
+              i < coreNumber - 1
+                ? 'bg-paper'
+                : i === coreNumber - 1
+                  ? 'bg-accent'
+                  : 'bg-paper/20'
+            )}
+          />
+        ))}
       </div>
       <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-paper/50">
-        Question {index + 1} of {total}
+        {isFollowup ? 'Quick follow-up' : `Question ${coreNumber} of ${coreCount}`}
       </span>
       <h1 className="max-w-xl text-balance font-display text-2xl font-semibold leading-snug tracking-tight text-paper sm:text-3xl">
         {question}

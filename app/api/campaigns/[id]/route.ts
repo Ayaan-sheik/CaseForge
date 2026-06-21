@@ -86,11 +86,18 @@ export async function PATCH(
       );
     }
     try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('context')
+        .eq('id', user.id)
+        .single();
       const question = await regenerateQuestion(
         campaign.client_name,
         campaign.service_provided,
         body.questionId,
-        Array.isArray(body.questions) ? body.questions : campaign.questions ?? []
+        Array.isArray(body.questions) ? body.questions : campaign.questions ?? [],
+        profile?.context ?? null,
+        campaign.brief ?? null
       );
       return NextResponse.json({ question });
     } catch (err) {

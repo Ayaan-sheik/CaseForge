@@ -2,10 +2,16 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { CopyButton } from '@/components/ui/copy-button';
-import type { LinkedInQuote } from '@/lib/types';
 
-export function LinkedInQuoteCard({ quote }: { quote: LinkedInQuote }) {
-  const linkedInText = `"${quote.quote}"\n\n— ${quote.context}`;
+/** A verbatim pull quote, ready to drop into a LinkedIn post or sales deck. */
+export function LinkedInQuoteCard({
+  quote,
+  attribution,
+}: {
+  quote: string;
+  attribution: string;
+}) {
+  const copyText = `"${quote}"\n\n— ${attribution}`;
 
   return (
     <Card className="hover-lift">
@@ -19,16 +25,16 @@ export function LinkedInQuoteCard({ quote }: { quote: LinkedInQuote }) {
             “
           </span>
           <p className="-mt-2 font-editorial text-lg italic leading-relaxed text-ink">
-            {quote.quote}
+            {quote}
           </p>
         </div>
 
         {/* Right: attribution + copy */}
         <div className="flex w-[140px] shrink-0 flex-col items-start gap-3 border-l border-line pl-5">
           <p className="font-mono text-[11px] uppercase tracking-[0.1em] text-ink-muted">
-            — {quote.context}
+            — {attribution}
           </p>
-          <CopyButton value={linkedInText} variant="outline" size="sm">
+          <CopyButton value={copyText} variant="outline" size="sm">
             Copy
           </CopyButton>
         </div>

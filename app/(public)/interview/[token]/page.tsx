@@ -82,7 +82,7 @@ export default async function InterviewLandingPage({ params }: { params: { token
           style={{ animationDelay: '150ms' }}
         >
           {[
-            { ts: '0:00', title: 'About 5 minutes', body: 'Three questions, answered with your voice. No typing.' },
+            { ts: '0:00', title: 'About 5 minutes', body: 'A few questions, answered with your voice. No typing.' },
             { ts: '0:10', title: 'Nothing to install', body: 'Works right here in your browser — phone or laptop.' },
             { ts: '5:00', title: 'Just talk naturally', body: 'Hold record, say it like you\'d say it to a colleague, release.', last: true },
           ].map((item) => (

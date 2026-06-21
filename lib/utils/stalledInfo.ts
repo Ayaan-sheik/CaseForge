@@ -1,7 +1,7 @@
 import type { Campaign } from '@/lib/types';
 
 export interface CampaignWithResponses extends Campaign {
-  responses: { id: string; duration_seconds: number | null }[];
+  responses: { id: string; duration_seconds: number | null; audio_url: string | null }[];
 }
 
 export interface StalledInfo {
@@ -21,16 +21,20 @@ export function getStalledInfo(campaign: CampaignWithResponses): StalledInfo | n
     return { label: 'Stalled', reason: 'Link unopened for 3 days' };
   }
 
-  if (campaign.status === 'recording' && campaign.responses.length === 0 && now - updatedAt > ONE_DAY_MS) {
+  // Only count *answered* turns — the interview seeds an unanswered "pending"
+  // row for the current question, which has no audio yet.
+  const recorded = campaign.responses.filter((r) => r.audio_url);
+
+  if (campaign.status === 'recording' && recorded.length === 0 && now - updatedAt > ONE_DAY_MS) {
     return { label: 'Stalled', reason: 'Link opened, but no audio recorded' };
   }
 
   if (
     campaign.status !== 'complete' &&
     campaign.status !== 'draft' &&
-    campaign.responses.length > 0
+    recorded.length > 0
   ) {
-    const durations = campaign.responses
+    const durations = recorded
       .map((r) => r.duration_seconds)
       .filter((d): d is number => d !== null);
     if (durations.length > 0) {

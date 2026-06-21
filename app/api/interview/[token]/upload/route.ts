@@ -2,18 +2,26 @@ import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { transcribeAudio } from '@/lib/ai/groq';
 import { cleanTranscript } from '@/lib/ai/cleanTranscript';
-import type { Campaign, Question } from '@/lib/types';
+import { decideFollowup } from '@/lib/ai/interviewDirector';
+import {
+  coreNumberFor,
+  MAX_FOLLOWUPS_PER_CORE,
+  MAX_TURNS,
+  type TurnRow,
+} from '@/lib/interview/turns';
+import type { AgencyContext, Campaign, Question } from '@/lib/types';
 
-// Whisper + LLM cleaning + the synthesis tail can exceed Vercel's default
+// Whisper + LLM cleaning + the director call can exceed Vercel's default
 // function timeout (10s hobby / 15s pro).
 export const maxDuration = 60;
 
 /**
  * POST /api/interview/[token]/upload
- * FormData: audio (File), questionId (string), duration (seconds, optional).
+ * FormData: audio (File), sequence (number — the pending turn being answered),
+ * duration (seconds, optional).
  *
- * Flow: upload audio → Supabase Storage → Groq Whisper transcription (sync)
- * → LLM clean → if all 3 questions done, fire synthesis.
+ * Flow: store audio → Groq Whisper → LLM clean → ask the director whether to
+ * probe with a follow-up or advance → queue the next question (or finish).
  */
 export async function POST(
   request: Request,
@@ -23,7 +31,7 @@ export async function POST(
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, status, questions')
+    .select('id, status, questions, brief, creator_id')
     .eq('magic_token', params.token)
     .maybeSingle<Campaign>();
 
@@ -31,28 +39,39 @@ export async function POST(
     return NextResponse.json({ error: 'Interview not found' }, { status: 404 });
   }
 
+  const core: Question[] = campaign.questions ?? [];
+
   const formData = await request.formData().catch(() => null);
   if (!formData) {
     return NextResponse.json({ error: 'Invalid form data' }, { status: 400 });
   }
 
   const audio = formData.get('audio');
-  const questionId = formData.get('questionId');
+  const sequence = Number(formData.get('sequence'));
 
-  if (!(audio instanceof File) || typeof questionId !== 'string') {
+  if (!(audio instanceof File) || !Number.isInteger(sequence) || sequence < 0) {
     return NextResponse.json(
-      { error: 'audio and questionId are required' },
+      { error: 'audio and a valid sequence are required' },
       { status: 400 }
     );
   }
 
-  const questions: Question[] = campaign.questions ?? [];
-  if (!questions.some((q) => q.id === questionId)) {
-    return NextResponse.json({ error: 'Unknown questionId' }, { status: 400 });
+  // The pending row for this turn must exist and be unanswered.
+  const { data: pendingRow } = await supabase
+    .from('responses')
+    .select('id, sequence, question_text, is_followup, transcript_clean')
+    .eq('campaign_id', campaign.id)
+    .eq('sequence', sequence)
+    .maybeSingle();
+
+  if (!pendingRow || pendingRow.transcript_clean) {
+    return NextResponse.json(
+      { error: 'This question has already been answered' },
+      { status: 409 }
+    );
   }
 
-  // Groq Whisper rejects uploads over 25MB (free tier) — fail fast with a
-  // clear message instead of erroring mid-pipeline after storing the audio.
+  // Groq Whisper rejects uploads over 25MB (free tier).
   const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
   if (audio.size === 0 || audio.size > MAX_AUDIO_BYTES) {
     return NextResponse.json(
@@ -63,18 +82,14 @@ export async function POST(
 
   const durationRaw = Number(formData.get('duration'));
   const duration =
-    Number.isFinite(durationRaw) && durationRaw > 0
-      ? Math.round(durationRaw)
-      : null;
+    Number.isFinite(durationRaw) && durationRaw > 0 ? Math.round(durationRaw) : null;
 
-  // Buffer the audio once so both Supabase and Groq can read from it.
-  // A File's underlying ReadableStream can only be consumed once — if we pass
-  // the raw File to Supabase first, the stream is exhausted and Groq would
-  // receive an empty payload, producing an empty transcript in production.
+  // Buffer the audio once so both Supabase and Groq can read it (a File's
+  // stream can only be consumed once).
   const audioBuffer = await audio.arrayBuffer();
 
-  // ── 1. Upload audio to Supabase Storage ────────────────────────────────────
-  const audioPath = `${campaign.id}/${questionId}.webm`;
+  // ── 1. Store audio ──────────────────────────────────────────────────────────
+  const audioPath = `${campaign.id}/${sequence}.webm`;
   const { error: storageError } = await supabase.storage
     .from('audio')
     .upload(audioPath, audioBuffer, {
@@ -84,99 +99,52 @@ export async function POST(
 
   if (storageError) {
     console.error('Audio storage upload failed:', storageError);
-    return NextResponse.json(
-      { error: 'Audio upload failed' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Audio upload failed' }, { status: 500 });
   }
 
   const {
     data: { publicUrl: audioUrl },
   } = supabase.storage.from('audio').getPublicUrl(audioPath);
 
-  // ── 2. Upsert the response row (reset any stale transcripts from a re-record) ─
-  const { data: responseRow, error: upsertError } = await supabase
-    .from('responses')
-    .upsert(
-      {
-        campaign_id: campaign.id,
-        question_id: questionId,
-        audio_url: audioUrl,
-        duration_seconds: duration,
-        transcript_raw: null,
-        transcript_clean: null,
-      },
-      { onConflict: 'campaign_id,question_id' }
-    )
-    .select()
-    .single();
-
-  if (upsertError || !responseRow) {
-    console.error('Response upsert failed:', upsertError);
-    return NextResponse.json(
-      { error: 'Could not save response' },
-      { status: 500 }
-    );
-  }
-
-  // ── 3. Transcribe with Groq Whisper ────────────────────────────────────────
+  // ── 2. Transcribe + clean ───────────────────────────────────────────────────
   let rawTranscript: string;
   try {
-    const audioForGroq = new File(
-      [audioBuffer],
-      audio.name || 'recording.webm',
-      { type: audio.type || 'audio/webm' }
-    );
+    const audioForGroq = new File([audioBuffer], audio.name || 'recording.webm', {
+      type: audio.type || 'audio/webm',
+    });
     rawTranscript = await transcribeAudio(audioForGroq);
   } catch (err) {
     console.error('Transcription failed:', err);
-    // Surface the underlying provider error (e.g. "model blocked at project
-    // level", rate limit) so the creator can see why instead of a generic retry.
     const detail = err instanceof Error ? err.message : 'Unknown error';
     await supabase
       .from('campaigns')
-      .update({
-        status: 'error',
-        error_message: `Transcription failed: ${detail}`,
-      })
+      .update({ status: 'error', error_message: `Transcription failed: ${detail}` })
       .eq('id', campaign.id);
-    return NextResponse.json(
-      { error: 'Transcription failed' },
-      { status: 502 }
-    );
+    return NextResponse.json({ error: 'Transcription failed' }, { status: 502 });
   }
 
-  const { error: rawWriteError } = await supabase
-    .from('responses')
-    .update({ transcript_raw: rawTranscript })
-    .eq('id', responseRow.id);
-  if (rawWriteError) {
-    console.error('Failed to persist raw transcript:', rawWriteError);
-  }
+  const cleanedTranscript = await cleanTranscript(rawTranscript).catch(() => rawTranscript);
 
-  // ── 4. Clean transcript with LLM ───────────────────────────────────────────
-  const cleanedTranscript = await cleanTranscript(rawTranscript).catch(
-    () => rawTranscript // fall back to raw if cleaning fails
-  );
-
-  const { error: cleanWriteError } = await supabase
+  const { error: updateError } = await supabase
     .from('responses')
-    .update({ transcript_clean: cleanedTranscript })
-    .eq('id', responseRow.id);
-  if (cleanWriteError) {
-    // This is the field `/complete` reads to decide the interview is done; a
-    // silent failure here would stall synthesis forever, so report it.
-    console.error('Failed to persist cleaned transcript:', cleanWriteError);
+    .update({
+      audio_url: audioUrl,
+      duration_seconds: duration,
+      transcript_raw: rawTranscript,
+      transcript_clean: cleanedTranscript,
+    })
+    .eq('id', pendingRow.id);
+
+  if (updateError) {
+    console.error('Failed to persist transcript:', updateError);
     return NextResponse.json(
       { error: 'Could not save your answer — please try again.' },
       { status: 500 }
     );
   }
 
-  // A previous question's transcription may have failed and parked the whole
-  // campaign in `error`. This upload succeeded, so lift it back to `recording`
-  // — otherwise `/complete` (which only acts on `recording`) can never fire
-  // synthesis and the interview stays permanently wedged.
+  // A prior turn's transcription may have parked the campaign in `error`; this
+  // upload succeeded, so lift it back to `recording`.
   if (campaign.status === 'error') {
     await supabase
       .from('campaigns')
@@ -184,5 +152,84 @@ export async function POST(
       .eq('id', campaign.id);
   }
 
-  return NextResponse.json({ success: true, transcript: cleanedTranscript });
+  // ── 3. Decide the next turn ─────────────────────────────────────────────────
+  const { data: allTurns } = await supabase
+    .from('responses')
+    .select('sequence, question_text, is_followup, transcript_clean')
+    .eq('campaign_id', campaign.id)
+    .order('sequence', { ascending: true })
+    .returns<TurnRow[]>();
+
+  const rows = allTurns ?? [];
+  const answered = rows.filter((r) => r.transcript_clean);
+  const coreAsked = answered.filter((r) => !r.is_followup).length;
+  const currentCore = [...answered].reverse().find((r) => !r.is_followup);
+  const priorFollowups = currentCore
+    ? answered.filter((r) => r.is_followup && r.sequence > currentCore.sequence).length
+    : 0;
+  const maxSeq = rows.reduce((m, r) => Math.max(m, r.sequence), 0);
+
+  let next: { text: string; isFollowup: boolean } | null = null;
+
+  if (answered.length < MAX_TURNS) {
+    let probe = { probe: false, question: null as string | null };
+    if (currentCore && priorFollowups < MAX_FOLLOWUPS_PER_CORE) {
+      const context = await loadContext(supabase, campaign.creator_id);
+      probe = await decideFollowup({
+        context,
+        brief: campaign.brief,
+        coreQuestion: currentCore.question_text ?? '',
+        lastAnswer: cleanedTranscript,
+        priorFollowups,
+      }).catch(() => ({ probe: false, question: null }));
+    }
+
+    if (probe.probe && probe.question) {
+      next = { text: probe.question, isFollowup: true };
+    } else if (coreAsked < core.length) {
+      next = { text: core[coreAsked].text, isFollowup: false };
+    }
+  }
+
+  if (!next) {
+    return NextResponse.json({ transcript: cleanedTranscript, done: true });
+  }
+
+  const nextSequence = maxSeq + 1;
+  await supabase.from('responses').insert({
+    campaign_id: campaign.id,
+    sequence: nextSequence,
+    question_text: next.text,
+    is_followup: next.isFollowup,
+  });
+
+  const nextRow: TurnRow = {
+    sequence: nextSequence,
+    question_text: next.text,
+    is_followup: next.isFollowup,
+    transcript_clean: null,
+  };
+
+  return NextResponse.json({
+    transcript: cleanedTranscript,
+    done: false,
+    nextQuestion: {
+      sequence: nextSequence,
+      text: next.text,
+      isFollowup: next.isFollowup,
+      coreNumber: coreNumberFor([...rows, nextRow], nextRow),
+    },
+  });
+}
+
+async function loadContext(
+  supabase: ReturnType<typeof createAdminClient>,
+  creatorId: string
+): Promise<AgencyContext | null> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('context')
+    .eq('id', creatorId)
+    .maybeSingle();
+  return (data?.context as AgencyContext | null) ?? null;
 }

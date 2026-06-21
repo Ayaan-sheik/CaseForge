@@ -2,17 +2,25 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ChevronDown, Mail, MessageSquare, RefreshCw } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  ChevronDown,
+  Mail,
+  MessageSquare,
+  RefreshCw,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { CopyButton } from '@/components/ui/copy-button';
 import { MagicLinkCard } from '@/components/dashboard/MagicLinkCard';
 import { cn } from '@/lib/utils/cn';
+import { BUILDER_QUESTIONS } from '@/lib/builder/questions';
 import type { Question } from '@/lib/types';
 
 type Step = 1 | 2 | 3;
+type Turn = { role: 'assistant' | 'user'; text: string };
 
 const STEP_LABELS = [
   { label: 'The work', ts: '00:00' },
@@ -25,8 +33,10 @@ export default function NewCampaignPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const [clientName, setClientName] = useState('');
-  const [serviceProvided, setServiceProvided] = useState('');
+  // Step 1 — guided brief chat
+  const [builderStep, setBuilderStep] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [draft, setDraft] = useState('');
 
   const [campaignId, setCampaignId] = useState('');
   const [magicToken, setMagicToken] = useState('');
@@ -36,33 +46,67 @@ export default function NewCampaignPage() {
   const [emailOpen, setEmailOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
 
+  const clientName = answers.client_name ?? '';
+
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ??
     (typeof window !== 'undefined' ? window.location.origin : '');
   const shareLink = `${appUrl}/interview/${magicToken}`;
 
   const emailTemplate = {
-    subject: 'Quick favor — 90 seconds of your time?',
-    body: `Hi ${clientName},\n\nI'd love to feature our work together as a case study. You just answer 3 quick questions with your voice, right from your phone — no typing, no calls, about 90 seconds total.\n\nHere's your link: ${shareLink}\n\nThanks so much!`,
+    subject: 'Quick favor — a few minutes of your time?',
+    body: `Hi ${clientName},\n\nI'd love to feature our work together as a case study. You just answer a few quick questions with your voice, right from your phone — no typing, no calls.\n\nHere's your link: ${shareLink}\n\nThanks so much!`,
   };
 
-  const smsTemplate = `Hi ${clientName}! Could you share quick feedback on our work together? 3 voice questions, ~90 seconds, right from your phone: ${shareLink}`;
+  const smsTemplate = `Hi ${clientName}! Could you share quick feedback on our work together? A few voice questions, right from your phone: ${shareLink}`;
 
-  async function handleGenerateQuestions(e: React.FormEvent) {
-    e.preventDefault();
+  const current = BUILDER_QUESTIONS[builderStep];
+  const isLastBuilder = builderStep === BUILDER_QUESTIONS.length - 1;
+
+  // Visible transcript of the brief chat so far.
+  const transcript: Turn[] = [];
+  for (let i = 0; i < builderStep; i++) {
+    const q = BUILDER_QUESTIONS[i];
+    transcript.push({ role: 'assistant', text: q.prompt });
+    transcript.push({ role: 'user', text: answers[q.key] ?? '' });
+  }
+
+  async function handleBuilderNext() {
+    if (!draft.trim()) return;
+    const updated = { ...answers, [current.key]: draft.trim() };
+    setAnswers(updated);
+    setDraft('');
     setError('');
-    setLoading(true);
 
+    if (!isLastBuilder) {
+      setBuilderStep((s) => s + 1);
+      return;
+    }
+
+    // Brief complete — structure it + generate questions.
+    setLoading(true);
     const res = await fetch('/api/campaigns', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientName, serviceProvided }),
+      body: JSON.stringify({
+        clientName: updated.client_name,
+        clientIndustry: updated.client_industry,
+        clientSize: updated.client_size,
+        briefAnswers: {
+          problem: updated.problem,
+          what_delivered: updated.what_delivered,
+          what_changed: updated.what_changed,
+        },
+      }),
     });
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !Array.isArray(data.questions)) {
       setError(data.error ?? 'Something went wrong — please try again.');
       setLoading(false);
+      // Stay on the last question so they can resubmit.
+      setAnswers(answers);
+      setDraft(updated[current.key]);
       return;
     }
 
@@ -71,6 +115,14 @@ export default function NewCampaignPage() {
     setQuestions(data.questions);
     setLoading(false);
     setStep(2);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    // Enter submits short answers; Cmd/Ctrl+Enter submits long ones.
+    if (e.key === 'Enter' && (current.short || e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleBuilderNext();
+    }
   }
 
   async function handleRegenerate(questionId: string) {
@@ -147,44 +199,83 @@ export default function NewCampaignPage() {
         })}
       </div>
 
-      {/* Step 1: The work */}
+      {/* Step 1: Guided brief chat */}
       {step === 1 && (
-        <div className="animate-fade-up rounded-[20px] border border-line bg-white p-8">
+        <div className="animate-fade-up">
           <p className="eyebrow">New campaign</p>
           <h1 className="mt-4 font-display text-[24px] font-semibold leading-tight tracking-[-0.02em]">
             Tell us about the work
           </h1>
           <p className="mt-1.5 font-editorial italic text-[15px] text-ink-secondary">
-            We&apos;ll write the questions — you just describe the engagement.
+            A few quick questions — we&apos;ll turn them into the interview your client answers.
           </p>
-          <form onSubmit={handleGenerateQuestions} className="mt-8 space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Client or company name</Label>
-              <Input
-                id="clientName"
-                required
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="Acme Inc."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="serviceProvided">Service you provided</Label>
-              <Input
-                id="serviceProvided"
-                required
-                value={serviceProvided}
-                onChange={(e) => setServiceProvided(e.target.value)}
-                placeholder="e.g. email marketing automation, CFO advisory, PR campaign"
-              />
-            </div>
-            {error && (
-              <p className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">{error}</p>
+
+          <div className="mt-8 space-y-3">
+            {transcript.map((turn, i) => (
+              <div
+                key={i}
+                className={cn('flex', turn.role === 'user' ? 'justify-end' : 'justify-start')}
+              >
+                <div
+                  className={cn(
+                    'max-w-[85%] rounded-[16px] px-4 py-3 text-[14px] leading-relaxed',
+                    turn.role === 'user'
+                      ? 'bg-ink text-paper'
+                      : 'border border-line bg-white text-ink'
+                  )}
+                >
+                  {turn.text}
+                </div>
+              </div>
+            ))}
+
+            {!loading && (
+              <div className="animate-fade-up flex justify-start">
+                <div className="max-w-[85%] rounded-[16px] border border-line bg-white px-4 py-3 text-[14px] leading-relaxed text-ink">
+                  {current.prompt}
+                </div>
+              </div>
             )}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Writing your questions…' : 'Generate questions'}
-            </Button>
-          </form>
+          </div>
+
+          {loading ? (
+            <p className="mt-6 text-center font-editorial italic text-[15px] text-ink-secondary">
+              Writing your questions…
+            </p>
+          ) : (
+            <div className="mt-5">
+              {current.short ? (
+                <Input
+                  value={draft}
+                  autoFocus
+                  placeholder={current.placeholder}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+              ) : (
+                <Textarea
+                  value={draft}
+                  rows={3}
+                  autoFocus
+                  placeholder={current.placeholder}
+                  onChange={(e) => setDraft(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+              )}
+              {error && (
+                <p className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">{error}</p>
+              )}
+              <div className="mt-3 flex items-center justify-between">
+                <span className="font-mono text-[12px] text-ink-secondary">
+                  {builderStep + 1} of {BUILDER_QUESTIONS.length}
+                </span>
+                <Button onClick={handleBuilderNext} disabled={!draft.trim()}>
+                  {isLastBuilder ? 'Generate questions' : 'Next'}
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -197,7 +288,8 @@ export default function NewCampaignPage() {
               Edit anything that doesn&apos;t sound like you
             </h1>
             <p className="mt-1.5 font-editorial italic text-[15px] text-ink-secondary">
-              These are the exact questions your client will answer out loud.
+              These are the core questions your client answers out loud. We&apos;ll ask smart
+              follow-ups automatically.
             </p>
           </div>
 

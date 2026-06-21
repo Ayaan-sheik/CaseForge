@@ -350,7 +350,11 @@ export function DashboardClient({ campaigns, appUrl, firstName }: DashboardClien
             </div>
           )}
           {!previewLoading && previewOutput && (
-            <OutputTabs output={previewOutput} appUrl={appUrl} />
+            <OutputTabs
+              output={previewOutput}
+              appUrl={appUrl}
+              clientName={previewCampaign?.client_name ?? ''}
+            />
           )}
           {!previewLoading && !previewOutput && (
             <div className="flex h-40 items-center justify-center text-center">

@@ -37,6 +37,11 @@ export default async function DashboardLayout({
             <span className="hidden font-mono text-[12px] text-ink-secondary sm:inline">
               {user.email}
             </span>
+            <Link href="/settings">
+              <Button variant="ghost" size="sm">
+                Settings
+              </Button>
+            </Link>
             <form action={signOut}>
               <Button type="submit" variant="ghost" size="sm">
                 Log out

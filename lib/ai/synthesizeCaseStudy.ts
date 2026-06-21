@@ -3,20 +3,27 @@ import { generateSlug } from '@/lib/utils/generateSlug';
 import { generateAndUploadPDF } from '@/lib/pdf/generatePDF';
 import { sendEmail } from '@/lib/email/send';
 import { outputsReadyEmail } from '@/lib/email/templates';
-import type {
-  Campaign,
-  Question,
-  ResponseRow,
-  SynthesisResult,
-} from '@/lib/types';
+import type { AgencyContext, CaseStudy } from '@/lib/types';
 import { generateText, parseJsonResponse } from './groq';
 
-const SYSTEM_PROMPT = `You are an elite B2B case study writer for SaaS and consulting companies. You write in clear, punchy, third-person narrative. You NEVER invent or extrapolate metrics — only use numbers explicitly stated. You write at a 9th-grade reading level with a professional tone. Every sentence earns its place.`;
+const SYSTEM_PROMPT = `You are a B2B case study writer who makes case studies read like a real testimonial the client gave — not like marketing a model wrote about them. Hard rules:
+- NEVER invent or extrapolate metrics. Only use numbers the client actually stated.
+- Pull quotes must be VERBATIM from the transcript — copy the client's exact words. Do not polish, combine, or paraphrase them.
+- In the Problem section, preserve the client's own framing and phrasing; only fix grammar.
+- Avoid brochure language and hype ("game-changing", "seamless", "best-in-class", "revolutionary"). Plain, specific, human.
+- Third person for narration, the client's voice for quotes. 9th-grade reading level.
+- If a section has no real material, keep it short and honest rather than padding it.`;
+
+interface InterviewTurn {
+  sequence: number;
+  question_text: string | null;
+  transcript_clean: string | null;
+}
 
 /**
- * Turn 3 cleaned transcripts into all three outputs: structured case study,
- * hosted page slug, and PDF. Marks the campaign 'complete' on success and
- * 'error' (with a message) on failure.
+ * Turn the cleaned interview transcript into the full 9-section case study,
+ * render the condensed PDF one-pager, and publish the hosted page. Marks the
+ * campaign 'complete' on success and 'error' (with a message) on failure.
  */
 export async function synthesizeCaseStudy(campaignId: string): Promise<void> {
   const supabase = createAdminClient();
@@ -26,78 +33,94 @@ export async function synthesizeCaseStudy(campaignId: string): Promise<void> {
       .from('campaigns')
       .select('*')
       .eq('id', campaignId)
-      .single<Campaign>();
+      .single();
 
     if (!campaign) throw new Error('Campaign not found');
 
-    const questions: Question[] = campaign.questions ?? [];
-    if (questions.length === 0) throw new Error('Campaign has no questions');
-
-    const { data: responses } = await supabase
+    const { data: turns } = await supabase
       .from('responses')
-      .select('*')
+      .select('sequence, question_text, transcript_clean')
       .eq('campaign_id', campaignId)
-      .returns<ResponseRow[]>();
+      .order('sequence', { ascending: true })
+      .returns<InterviewTurn[]>();
 
-    const byQuestionId = new Map(
-      (responses ?? []).map((r) => [r.question_id, r])
-    );
-
-    const pairs = questions.map((q) => ({
-      question: q.text,
-      answer: byQuestionId.get(q.id)?.transcript_clean,
-    }));
-
-    if (pairs.some((p) => !p.answer)) {
-      throw new Error('Not all transcripts have been processed yet');
+    const answered = (turns ?? []).filter((t) => t.transcript_clean?.trim());
+    if (answered.length === 0) {
+      throw new Error('No answered interview turns to synthesize');
     }
 
-    const userPrompt = `Write a case study from these interview answers.
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('context')
+      .eq('id', campaign.creator_id)
+      .maybeSingle();
+    const context = (profile?.context as AgencyContext | null) ?? null;
 
-Client: ${campaign.client_name}
+    const transcript = answered
+      .map((t) => `Q: ${t.question_text ?? ''}\nA: ${t.transcript_clean}`)
+      .join('\n\n');
+
+    const briefBlock = campaign.brief
+      ? `Consultant's brief:\n- Problem: ${campaign.brief.problem}\n- Delivered: ${campaign.brief.what_delivered}\n- Outcome claimed: ${campaign.brief.what_changed}\n`
+      : '';
+    const contextBlock = context
+      ? `About the consultant: ${context.what_you_do}. Voice to match: ${context.tone}.\n`
+      : '';
+
+    const userPrompt = `Write a case study about ${campaign.client_name}.
+Industry: ${campaign.client_industry ?? 'unknown'}
+Company size: ${campaign.client_size ?? 'unknown'}
 Service provided: ${campaign.service_provided}
-
-${pairs.map((p) => `Q: ${p.question}\nA: ${p.answer}`).join('\n\n')}
+${contextBlock}${briefBlock}
+Interview transcript (the client's own words):
+${transcript}
 
 Return ONLY a valid JSON object (no markdown, no preamble):
 {
-  "title": "How [Client] [achieved specific result] with [Service] — make it specific and metric-driven if a metric was mentioned",
-  "summary": "2 sentences. Hook the reader with the most impressive result first.",
-  "challenge": "2-3 sentences describing the situation before. Make it relatable.",
-  "solution": "3-4 sentences on what was implemented/done. Be specific.",
-  "results": "2-3 sentences. Lead with the strongest metric. Bold important numbers by wrapping in **double asterisks**.",
-  "testimonial_quote": "The single best verbatim or lightly-edited quote from the transcripts. Must sound human.",
-  "linkedin_quotes": [
-    { "quote": "First quote in the client's voice — lead with the punchy result or insight, then add a sentence of context explaining what made it possible. Aim for 40-80 words, 2-3 sentences.", "context": "[Client Name] on [Service]" },
-    { "quote": "Second quote — a different angle focused on the transformation. Contrast the before and after with concrete detail. Aim for 40-80 words, 2-3 sentences.", "context": "[Client Name] on [Service]" },
-    { "quote": "Third quote — a recommendation or trust statement that gives a specific reason someone should work with you. Aim for 40-80 words, 2-3 sentences.", "context": "[Client Name] on [Service]" }
-  ]
+  "title": "How ${campaign.client_name} [achieved specific result] with [service] — specific and metric-driven if a metric was stated",
+  "snapshot": {
+    "industry": "${campaign.client_industry ?? ''}",
+    "size": "${campaign.client_size ?? ''}",
+    "headline_metric": "the single most impressive number from the interview, short (e.g. '32% of revenue'); empty string if none was stated"
+  },
+  "exec_summary": "Under 100 words. One sentence on the problem, one on what changed, one on the result.",
+  "problem": "1-2 short paragraphs in the client's own framing. Preserve their phrasing; fix grammar only.",
+  "solution": "1-2 paragraphs on what was done and how it fit their day-to-day. Strategy over feature-list.",
+  "results": {
+    "stats": [ { "value": "32%", "label": "of revenue from email" } ],
+    "prose": "1-2 sentences weaving the outcome together, ending on the human payoff. Only real numbers."
+  },
+  "pull_quotes": ["2-3 VERBATIM quotes copied exactly from the transcript above"],
+  "about_company": "2-3 sentences about ${campaign.client_name}, factual and neutral in tone.",
+  "cta": "One sentence call to action for the reader to work with the consultant (not CaseForge)."
 }`;
 
-    const text = await generateText(SYSTEM_PROMPT, userPrompt, true);
-    const caseStudy = parseJsonResponse<SynthesisResult>(text);
+    const text = await generateText(SYSTEM_PROMPT, userPrompt, true, 'synthesis');
+    const caseStudy = parseJsonResponse<CaseStudy>(text);
 
-    // The model can omit fields; bail with a clear error rather than writing
-    // `undefined` to the DB or crashing the PDF renderer downstream.
-    const requiredFields: (keyof SynthesisResult)[] = [
-      'title',
-      'summary',
-      'challenge',
-      'solution',
-      'results',
-      'testimonial_quote',
-    ];
-    const missing = requiredFields.filter(
-      (f) => typeof caseStudy?.[f] !== 'string' || !(caseStudy[f] as string).trim()
-    );
+    // Validate the load-bearing fields rather than writing undefined downstream.
+    const missing: string[] = [];
+    if (!caseStudy?.title?.trim()) missing.push('title');
+    if (!caseStudy?.exec_summary?.trim()) missing.push('exec_summary');
+    if (!caseStudy?.problem?.trim()) missing.push('problem');
+    if (!caseStudy?.solution?.trim()) missing.push('solution');
     if (missing.length > 0) {
-      throw new Error(
-        `AI response missing required field(s): ${missing.join(', ')}`
-      );
+      throw new Error(`AI response missing required field(s): ${missing.join(', ')}`);
     }
-    if (!Array.isArray(caseStudy.linkedin_quotes)) {
-      caseStudy.linkedin_quotes = [];
-    }
+
+    // Normalize optional/nested shapes the model can omit.
+    caseStudy.snapshot = {
+      industry: caseStudy.snapshot?.industry ?? campaign.client_industry ?? '',
+      size: caseStudy.snapshot?.size ?? campaign.client_size ?? '',
+      headline_metric: caseStudy.snapshot?.headline_metric ?? '',
+    };
+    caseStudy.results = {
+      stats: Array.isArray(caseStudy.results?.stats) ? caseStudy.results.stats : [],
+      prose: caseStudy.results?.prose ?? '',
+    };
+    if (!Array.isArray(caseStudy.pull_quotes)) caseStudy.pull_quotes = [];
+    caseStudy.about_company = caseStudy.about_company ?? '';
+    caseStudy.cta = caseStudy.cta ?? '';
 
     // Keep an already-published slug stable across "Retry Processing" runs.
     const { data: existing } = await supabase
@@ -105,29 +128,17 @@ Return ONLY a valid JSON object (no markdown, no preamble):
       .select('web_slug')
       .eq('campaign_id', campaignId)
       .maybeSingle();
-
     const webSlug = existing?.web_slug ?? generateSlug(campaign.client_name);
 
     const pdfUrl = await generateAndUploadPDF(campaignId, {
-      title: caseStudy.title,
-      summary: caseStudy.summary,
-      challenge: caseStudy.challenge,
-      solution: caseStudy.solution,
-      results: caseStudy.results,
-      testimonialQuote: caseStudy.testimonial_quote,
+      caseStudy,
       clientName: campaign.client_name,
     });
 
     const { error: upsertError } = await supabase.from('outputs').upsert(
       {
         campaign_id: campaignId,
-        case_study_title: caseStudy.title,
-        case_study_summary: caseStudy.summary,
-        case_study_challenge: caseStudy.challenge,
-        case_study_solution: caseStudy.solution,
-        case_study_results: caseStudy.results,
-        testimonial_quote: caseStudy.testimonial_quote,
-        linkedin_quotes: caseStudy.linkedin_quotes,
+        case_study: caseStudy,
         pdf_url: pdfUrl,
         web_slug: webSlug,
       },
@@ -141,9 +152,7 @@ Return ONLY a valid JSON object (no markdown, no preamble):
       .update({ status: 'complete', error_message: null })
       .eq('id', campaignId);
 
-    const { data: userData } = await supabase.auth.admin.getUserById(
-      campaign.creator_id
-    );
+    const { data: userData } = await supabase.auth.admin.getUserById(campaign.creator_id);
     const creatorEmail = userData?.user?.email;
 
     if (creatorEmail) {
@@ -157,8 +166,7 @@ Return ONLY a valid JSON object (no markdown, no preamble):
       });
     }
   } catch (err) {
-    const errorMessage =
-      err instanceof Error ? err.message : 'Synthesis failed';
+    const errorMessage = err instanceof Error ? err.message : 'Synthesis failed';
     console.error(`Synthesis failed for campaign ${campaignId}:`, err);
     await supabase
       .from('campaigns')

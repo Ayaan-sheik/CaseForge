@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 import { createAdminClient } from '@/lib/supabase/server';
 import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
-import type { Campaign, Question } from '@/lib/types';
+import type { Campaign } from '@/lib/types';
 
 export const maxDuration = 60;
 
+/**
+ * POST /api/interview/[token]/complete
+ * Called by the client once the director has ended the interview. Locks the
+ * campaign recording → processing (idempotently) and fires synthesis. The
+ * interview length is decided server-side, so we only need at least one
+ * answered turn before generating.
+ */
 export async function POST(
   _request: Request,
   { params }: { params: { token: string } }
@@ -14,7 +21,7 @@ export async function POST(
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, status, questions')
+    .select('id, status')
     .eq('magic_token', params.token)
     .maybeSingle<Campaign>();
 
@@ -26,38 +33,31 @@ export async function POST(
     return NextResponse.json({ success: true });
   }
 
-  const questions: Question[] = campaign.questions ?? [];
-
-  const { data: allResponses } = await supabase
+  // Guard against an empty interview (no answered turns yet).
+  const { count } = await supabase
     .from('responses')
-    .select('question_id, transcript_clean')
-    .eq('campaign_id', campaign.id);
+    .select('id', { count: 'exact', head: true })
+    .eq('campaign_id', campaign.id)
+    .not('transcript_clean', 'is', null);
 
-  const cleanedIds = new Set(
-    (allResponses ?? [])
-      .filter((r) => r.transcript_clean)
-      .map((r) => r.question_id)
-  );
+  if (!count) {
+    return NextResponse.json({ success: true });
+  }
 
-  const allDone =
-    questions.length > 0 && questions.every((q) => cleanedIds.has(q.id));
+  const { data: locked } = await supabase
+    .from('campaigns')
+    .update({ status: 'processing' })
+    .eq('id', campaign.id)
+    .eq('status', 'recording')
+    .select('id')
+    .maybeSingle();
 
-  if (allDone) {
-    const { data: locked } = await supabase
-      .from('campaigns')
-      .update({ status: 'processing' })
-      .eq('id', campaign.id)
-      .eq('status', 'recording')
-      .select('id')
-      .maybeSingle();
-
-    if (locked) {
-      waitUntil(
-        synthesizeCaseStudy(campaign.id).catch((err) =>
-          console.error('Synthesis failed:', err)
-        )
-      );
-    }
+  if (locked) {
+    waitUntil(
+      synthesizeCaseStudy(campaign.id).catch((err) =>
+        console.error('Synthesis failed:', err)
+      )
+    );
   }
 
   return NextResponse.json({ success: true });

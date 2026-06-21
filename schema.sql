@@ -8,6 +8,11 @@ create table if not exists profiles (
   id uuid primary key references auth.users on delete cascade,
   full_name text,
   company_name text,
+  -- Global agency context, captured once during onboarding and editable in
+  -- Settings. Shape: { what_you_do, icp, services[], differentiator, tone,
+  -- typical_outcomes }. Injected into downstream question/synthesis prompts.
+  context jsonb,
+  onboarding_complete boolean not null default false,
   created_at timestamptz default now()
 );
 alter table profiles enable row level security;
@@ -20,8 +25,12 @@ create policy "Users can read/write own profile"
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name)
-  values (new.id, new.raw_user_meta_data->>'full_name');
+  insert into public.profiles (id, full_name, company_name)
+  values (
+    new.id,
+    new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'company_name'
+  );
   return new;
 end;
 $$ language plpgsql security definer;
@@ -39,9 +48,17 @@ create table if not exists campaigns (
   creator_id uuid not null references profiles(id) on delete cascade,
   client_name text not null,
   service_provided text not null,
+  -- Snapshot-strip fields (creator-supplied) + engagement brief captured in the
+  -- conversational builder. brief shape: { problem, what_delivered, what_changed,
+  -- suspected_metrics[] }. Feeds client-specific question generation + synthesis.
+  client_industry text,
+  client_size text,
+  brief jsonb,
   status text not null default 'draft'
     check (status in ('draft', 'sent', 'recording', 'processing', 'complete', 'error')),
   magic_token uuid unique default gen_random_uuid(),
+  -- The generated core questions (4-5). Adaptive follow-ups are NOT stored here;
+  -- they're decided live during the interview and recorded on `responses`.
   questions jsonb,
   error_message text,
   created_at timestamptz default now(),
@@ -75,18 +92,22 @@ create trigger campaigns_updated_at
 
 -- ============================================================
 
--- RESPONSES (one row per question per campaign)
+-- RESPONSES (one row per interview *turn* — core question or adaptive follow-up)
 create table if not exists responses (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid not null references campaigns(id) on delete cascade,
-  question_id text not null,
+  -- Ordered position in the conversation (0-based). Questions are now dynamic,
+  -- so we store the asked text alongside each answer rather than a fixed q1/q2/q3.
+  sequence integer not null default 0,
+  question_text text,
+  is_followup boolean not null default false,
+  question_id text,            -- legacy/optional; no longer unique-constrained
   audio_url text,
   transcript_raw text,
   transcript_clean text,
   assemblyai_id text,
   duration_seconds integer,
-  created_at timestamptz default now(),
-  unique (campaign_id, question_id)
+  created_at timestamptz default now()
 );
 alter table responses enable row level security;
 
@@ -115,13 +136,11 @@ create policy "Public can insert responses"
 create table if not exists outputs (
   id uuid primary key default gen_random_uuid(),
   campaign_id uuid unique not null references campaigns(id) on delete cascade,
-  case_study_title text,
-  case_study_summary text,
-  case_study_challenge text,
-  case_study_solution text,
-  case_study_results text,
-  testimonial_quote text,
-  linkedin_quotes jsonb,
+  -- Full 9-section structured case study (source of truth). Shape:
+  -- { title, snapshot{industry,size,headline_metric}, exec_summary, problem,
+  --   solution, results{stats[{value,label}], prose}, pull_quotes[],
+  --   about_company, cta }. The PDF one-pager and quote cards derive from this.
+  case_study jsonb,
   pdf_url text,
   web_slug text unique,
   created_at timestamptz default now()

@@ -11,12 +11,13 @@ import type { Output } from '@/lib/types';
 interface OutputTabsProps {
   output: Output;
   appUrl: string;
+  clientName: string;
 }
 
-export function OutputTabs({ output, appUrl }: OutputTabsProps) {
+export function OutputTabs({ output, appUrl, clientName }: OutputTabsProps) {
   const hasWebPage = Boolean(output.web_slug);
   const publicLink = `${appUrl}/case-study/${output.web_slug}`;
-  const quotes = output.linkedin_quotes ?? [];
+  const quotes = output.case_study?.pull_quotes ?? [];
 
   return (
     <Tabs defaultValue="pdf">
@@ -79,7 +80,7 @@ export function OutputTabs({ output, appUrl }: OutputTabsProps) {
         </p>
         <div className="space-y-4">
           {quotes.map((quote, index) => (
-            <LinkedInQuoteCard key={quote.quote ?? index} quote={quote} />
+            <LinkedInQuoteCard key={index} quote={quote} attribution={clientName} />
           ))}
         </div>
       </TabsContent>
