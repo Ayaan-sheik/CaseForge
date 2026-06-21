@@ -1,23 +1,36 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(searchParams.get('error') ?? '');
   const [loading, setLoading] = useState(false);
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const [resent, setResent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setUnconfirmed(false);
+    setResent(false);
     setLoading(true);
 
     const supabase = createClient();
@@ -27,13 +40,29 @@ export default function LoginPage() {
     });
 
     if (signInError) {
-      setError(signInError.message);
+      if (signInError.code === 'email_not_confirmed') {
+        setUnconfirmed(true);
+        setError('Please confirm your email before logging in.');
+      } else {
+        setError(signInError.message);
+      }
       setLoading(false);
       return;
     }
 
     router.push('/dashboard');
     router.refresh();
+  }
+
+  async function handleResend() {
+    setResent(false);
+    const supabase = createClient();
+    await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
+    });
+    setResent(true);
   }
 
   return (
@@ -84,7 +113,19 @@ export default function LoginPage() {
               />
             </div>
             {error && (
-              <p className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">{error}</p>
+              <div className="rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">
+                <p>{error}</p>
+                {unconfirmed && !resent && (
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    className="mt-1 font-medium underline underline-offset-4"
+                  >
+                    Resend confirmation email
+                  </button>
+                )}
+                {resent && <p className="mt-1 text-ink-secondary">Confirmation email sent.</p>}
+              </div>
             )}
             <Button type="submit" className="h-11 w-full" disabled={loading}>
               {loading ? 'Logging in…' : 'Log in'}
