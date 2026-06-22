@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { isFilled } from '@/lib/utils/isFilled';
 import type { CaseStudy } from '@/lib/types';
 
 export interface CaseStudyPDFProps {
@@ -44,7 +45,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   snapValue: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.navy },
-  summary: { fontSize: 11.5, fontFamily: 'Helvetica-Oblique', color: colors.muted, lineHeight: 1.5, marginBottom: 24 },
+  headline: { fontSize: 11.5, fontFamily: 'Helvetica-Oblique', color: colors.muted, lineHeight: 1.5, marginBottom: 24 },
   quoteBox: { backgroundColor: colors.lightBg, borderRadius: 8, padding: 18, marginTop: 4 },
   quoteMark: { fontSize: 42, fontFamily: 'Helvetica-Bold', color: colors.accent, lineHeight: 1, marginBottom: 2 },
   quoteText: { fontSize: 11.5, fontFamily: 'Helvetica-Oblique', lineHeight: 1.55, marginBottom: 12 },
@@ -63,7 +64,7 @@ const styles = StyleSheet.create({
   footerText: { fontSize: 8, color: '#94a3b8' },
 });
 
-/** Condensed sales one-pager: snapshot strip + exec summary + the lead quote. */
+/** Condensed sales one-pager: headline + before→after snapshot + lead quote. */
 export function CaseStudyPDF({ caseStudy, clientName }: CaseStudyPDFProps) {
   const generatedDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -71,28 +72,31 @@ export function CaseStudyPDF({ caseStudy, clientName }: CaseStudyPDFProps) {
     day: 'numeric',
   });
 
-  const snap = caseStudy.snapshot;
-  const leadQuote = caseStudy.pull_quotes?.[0];
+  const title = isFilled(caseStudy.headline_result)
+    ? caseStudy.headline_result
+    : `${clientName} — case study`;
 
-  const cells = [
-    snap?.industry ? { label: 'INDUSTRY', value: snap.industry } : null,
-    snap?.size ? { label: 'COMPANY SIZE', value: snap.size } : null,
-    snap?.headline_metric ? { label: 'HEADLINE RESULT', value: snap.headline_metric } : null,
-  ].filter(Boolean) as { label: string; value: string }[];
+  const cells = (caseStudy.snapshot ?? [])
+    .filter((s) => isFilled(s.metric) && (isFilled(s.before) || isFilled(s.after)))
+    .slice(0, 3)
+    .map((s) => ({ label: s.metric.toUpperCase(), value: `${s.before} → ${s.after}` }));
+
+  const lead = (caseStudy.quotes ?? []).find((q) => isFilled(q.quote));
+  const leadAttribution = lead && isFilled(lead.name) ? lead.name : clientName;
 
   return (
-    <Document title={caseStudy.title} author="CaseForge">
+    <Document title={title} author="CaseForge">
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <Text style={styles.headerLabel}>CUSTOMER SUCCESS STORY</Text>
-          <Text style={styles.title}>{caseStudy.title}</Text>
+          <Text style={styles.title}>{title}</Text>
         </View>
 
         <View style={styles.body}>
           {cells.length > 0 && (
             <View style={styles.snapshot}>
-              {cells.map((c) => (
-                <View key={c.label} style={styles.snapCell}>
+              {cells.map((c, i) => (
+                <View key={i} style={styles.snapCell}>
                   <Text style={styles.snapLabel}>{c.label}</Text>
                   <Text style={styles.snapValue}>{c.value}</Text>
                 </View>
@@ -100,13 +104,15 @@ export function CaseStudyPDF({ caseStudy, clientName }: CaseStudyPDFProps) {
             </View>
           )}
 
-          <Text style={styles.summary}>{caseStudy.exec_summary}</Text>
+          {isFilled(caseStudy.industry_size) && (
+            <Text style={styles.headline}>{caseStudy.industry_size}</Text>
+          )}
 
-          {leadQuote && (
+          {lead && (
             <View style={styles.quoteBox}>
               <Text style={styles.quoteMark}>&ldquo;</Text>
-              <Text style={styles.quoteText}>{leadQuote}</Text>
-              <Text style={styles.quoteAttribution}>— {clientName}</Text>
+              <Text style={styles.quoteText}>{lead.quote}</Text>
+              <Text style={styles.quoteAttribution}>— {leadAttribution}</Text>
             </View>
           )}
         </View>

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/server';
+import { isFilled } from '@/lib/utils/isFilled';
 import type { CaseStudy, Output } from '@/lib/types';
 
 interface CaseStudyRecord extends Output {
@@ -25,10 +26,12 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const record = await getCaseStudy(params.slug);
   const cs = record?.case_study;
   if (!cs) return { title: 'Case Study — CaseForge' };
+  const title = `${cs.client_name} — case study`;
+  const description = isFilled(cs.headline_result) ? cs.headline_result : undefined;
   return {
-    title: cs.title,
-    description: cs.exec_summary,
-    openGraph: { title: cs.title, description: cs.exec_summary, type: 'article' },
+    title,
+    description,
+    openGraph: { title, description, type: 'article' },
   };
 }
 
@@ -48,14 +51,14 @@ export default async function CaseStudyPage({ params }: { params: { slug: string
   const cs: CaseStudy = record.case_study;
   const clientName = record.campaigns.client_name;
 
-  const snapCells = [
-    cs.snapshot?.industry && { label: 'Industry', value: cs.snapshot.industry },
-    cs.snapshot?.size && { label: 'Company size', value: cs.snapshot.size },
-    cs.snapshot?.headline_metric && { label: 'Headline result', value: cs.snapshot.headline_metric },
-  ].filter(Boolean) as { label: string; value: string }[];
-
-  const stats = cs.results?.stats ?? [];
-  const quotes = cs.pull_quotes ?? [];
+  const snapshot = (cs.snapshot ?? []).filter(
+    (s) => isFilled(s.metric) && (isFilled(s.before) || isFilled(s.after))
+  );
+  const results = (cs.results ?? []).filter(
+    (r) => isFilled(r.metric) && (isFilled(r.before) || isFilled(r.after))
+  );
+  const steps = (cs.what_we_did ?? []).filter(isFilled);
+  const quotes = (cs.quotes ?? []).filter((q) => isFilled(q.quote));
 
   return (
     <div className="min-h-screen bg-paper">
@@ -82,97 +85,121 @@ export default async function CaseStudyPage({ params }: { params: { slug: string
           Case study · {record.campaigns.service_provided}
         </p>
 
+        {/* §1 Headline result */}
         <h1
           className="animate-fade-up mt-5 font-display text-[clamp(28px,4vw,40px)] font-semibold leading-tight tracking-[-0.025em]"
           style={{ animationDelay: '160ms' }}
         >
-          {cs.title}
+          {isFilled(cs.headline_result) ? cs.headline_result : clientName}
         </h1>
 
-        {/* Snapshot strip */}
-        {snapCells.length > 0 && (
-          <div
-            className="animate-fade-up mt-8 grid grid-cols-3 gap-4 rounded-[16px] border border-line bg-white p-5"
-            style={{ animationDelay: '220ms' }}
+        {isFilled(cs.industry_size) && (
+          <p
+            className="animate-fade-up mt-3 font-mono text-[12px] uppercase tracking-[0.12em] text-ink-secondary"
+            style={{ animationDelay: '200ms' }}
           >
-            {snapCells.map((c) => (
-              <div key={c.label}>
+            {cs.industry_size}
+          </p>
+        )}
+
+        {/* §2 Snapshot — before → after */}
+        {snapshot.length > 0 && (
+          <div
+            className="animate-fade-up mt-8 grid gap-4 rounded-[16px] border border-line bg-white p-5 sm:grid-cols-3"
+            style={{ animationDelay: '260ms' }}
+          >
+            {snapshot.map((s, i) => (
+              <div key={i}>
                 <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-secondary">
-                  {c.label}
+                  {s.metric}
                 </p>
                 <p className="mt-1.5 font-display text-[16px] font-semibold leading-tight text-ink">
-                  {c.value}
+                  {s.before} → {s.after}
                 </p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Executive summary */}
-        {cs.exec_summary && (
-          <p
-            className="animate-fade-up mt-8 max-w-[60ch] font-editorial text-[20px] italic leading-relaxed text-ink-secondary"
-            style={{ animationDelay: '300ms' }}
-          >
-            {cs.exec_summary}
-          </p>
-        )}
-
-        {/* The Problem */}
-        {cs.problem && (
+        {/* §3 The Challenge */}
+        {isFilled(cs.challenge) && (
           <section className="animate-fade-up mt-12">
-            <h2 className="eyebrow">The Problem</h2>
+            <h2 className="eyebrow">The Challenge</h2>
             <p className="mt-4 max-w-[65ch] whitespace-pre-line text-[16px] leading-relaxed text-ink-secondary">
-              {cs.problem}
+              {cs.challenge}
             </p>
           </section>
         )}
 
-        {/* The Solution */}
-        {cs.solution && (
+        {/* §4 Why they chose the provider */}
+        {isFilled(cs.why_chose) && (
           <section className="animate-fade-up mt-12">
-            <h2 className="eyebrow">The Solution</h2>
+            <h2 className="eyebrow">
+              Why they chose {isFilled(cs.provider_name) ? cs.provider_name : 'us'}
+            </h2>
             <p className="mt-4 max-w-[65ch] whitespace-pre-line text-[16px] leading-relaxed text-ink-secondary">
-              {cs.solution}
+              {cs.why_chose}
             </p>
           </section>
         )}
 
-        {/* The Results */}
-        {(stats.length > 0 || cs.results?.prose) && (
+        {/* §5 What we did */}
+        {steps.length > 0 && (
+          <section className="animate-fade-up mt-12">
+            <h2 className="eyebrow">What we did</h2>
+            <ol className="mt-4 max-w-[65ch] list-decimal space-y-3 pl-5 text-[16px] leading-relaxed text-ink-secondary marker:font-mono marker:text-ink-secondary">
+              {steps.map((step, i) => (
+                <li key={i}>{step}</li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        {/* §6 The Results — Metric | Before | After */}
+        {results.length > 0 && (
           <section className="animate-fade-up mt-12">
             <h2 className="eyebrow">The Results</h2>
-            {stats.length > 0 && (
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                {stats.map((s, i) => (
-                  <div key={i} className="rounded-[16px] border border-line bg-white p-5">
-                    <p className="font-display text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">
-                      {s.value}
-                    </p>
-                    <p className="mt-2 text-[13px] leading-snug text-ink-secondary">{s.label}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-            {cs.results?.prose && (
-              <p className="mt-5 max-w-[65ch] text-[16px] leading-relaxed text-ink-secondary">
-                {cs.results.prose}
-              </p>
-            )}
+            <div className="mt-5 overflow-hidden rounded-[16px] border border-line bg-white">
+              <table className="w-full text-left text-[15px]">
+                <thead>
+                  <tr className="border-b border-line">
+                    <th className="px-5 py-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-secondary">
+                      Metric
+                    </th>
+                    <th className="px-5 py-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-secondary">
+                      Before
+                    </th>
+                    <th className="px-5 py-3 font-mono text-[10.5px] uppercase tracking-[0.12em] text-ink-secondary">
+                      After
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {results.map((r, i) => (
+                    <tr key={i} className="border-b border-line last:border-0">
+                      <td className="px-5 py-3 text-ink">{r.metric}</td>
+                      <td className="px-5 py-3 text-ink-secondary">{r.before}</td>
+                      <td className="px-5 py-3 font-semibold text-ink">{r.after}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
-        {/* In their words — verbatim pull quotes */}
+        {/* §7 In their words — verbatim quotes */}
         {quotes.length > 0 && (
           <section className="animate-fade-up mt-16 border-t border-line pt-14">
             <div className="space-y-10">
               {quotes.map((q, i) => (
                 <figure key={i} className="text-center">
                   <blockquote className="mx-auto max-w-[24em] font-editorial text-[clamp(20px,2.6vw,26px)] font-medium italic leading-[1.45] tracking-[-0.01em]">
-                    &ldquo;{q}&rdquo;
+                    &ldquo;{q.quote}&rdquo;
                   </blockquote>
                   <figcaption className="mt-5 font-mono text-[12px] uppercase tracking-[0.1em] text-ink-secondary">
-                    — {clientName}
+                    — {isFilled(q.name) ? q.name : clientName}
+                    {isFilled(q.title) && `, ${q.title}`}
                   </figcaption>
                 </figure>
               ))}
@@ -180,18 +207,18 @@ export default async function CaseStudyPage({ params }: { params: { slug: string
           </section>
         )}
 
-        {/* About the company */}
-        {cs.about_company && (
-          <section className="animate-fade-up mt-16 rounded-[16px] border border-line bg-white p-6">
-            <h2 className="font-mono text-[11px] uppercase tracking-[0.12em] text-ink-secondary">
-              About {clientName}
-            </h2>
-            <p className="mt-3 text-[15px] leading-relaxed text-ink-secondary">{cs.about_company}</p>
+        {/* §8 Timeline */}
+        {isFilled(cs.timeline) && (
+          <section className="animate-fade-up mt-12 text-center">
+            <p className="font-mono text-[12px] uppercase tracking-[0.12em] text-ink-secondary">
+              Timeline
+            </p>
+            <p className="mt-2 font-display text-[18px] font-semibold text-ink">{cs.timeline}</p>
           </section>
         )}
 
-        {/* CTA */}
-        {cs.cta && (
+        {/* §9 CTA */}
+        {isFilled(cs.cta) && (
           <section className="animate-fade-up mt-12 text-center">
             <p className="mx-auto max-w-[40ch] font-display text-[20px] font-semibold leading-snug tracking-[-0.01em]">
               {cs.cta}

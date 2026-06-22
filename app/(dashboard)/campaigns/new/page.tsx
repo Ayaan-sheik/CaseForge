@@ -20,7 +20,6 @@ import { BUILDER_QUESTIONS } from '@/lib/builder/questions';
 import type { Question } from '@/lib/types';
 
 type Step = 1 | 2 | 3;
-type Turn = { role: 'assistant' | 'user'; text: string };
 
 const STEP_LABELS = [
   { label: 'The work', ts: '00:00' },
@@ -62,14 +61,6 @@ export default function NewCampaignPage() {
 
   const current = BUILDER_QUESTIONS[builderStep];
   const isLastBuilder = builderStep === BUILDER_QUESTIONS.length - 1;
-
-  // Visible transcript of the brief chat so far.
-  const transcript: Turn[] = [];
-  for (let i = 0; i < builderStep; i++) {
-    const q = BUILDER_QUESTIONS[i];
-    transcript.push({ role: 'assistant', text: q.prompt });
-    transcript.push({ role: 'user', text: answers[q.key] ?? '' });
-  }
 
   async function handleBuilderNext() {
     if (!draft.trim()) return;
@@ -210,40 +201,16 @@ export default function NewCampaignPage() {
             A few quick questions — we&apos;ll turn them into the interview your client answers.
           </p>
 
-          <div className="mt-8 space-y-3">
-            {transcript.map((turn, i) => (
-              <div
-                key={i}
-                className={cn('flex', turn.role === 'user' ? 'justify-end' : 'justify-start')}
-              >
-                <div
-                  className={cn(
-                    'max-w-[85%] rounded-[16px] px-4 py-3 text-[14px] leading-relaxed',
-                    turn.role === 'user'
-                      ? 'bg-ink text-paper'
-                      : 'border border-line bg-white text-ink'
-                  )}
-                >
-                  {turn.text}
-                </div>
-              </div>
-            ))}
-
-            {!loading && (
-              <div className="animate-fade-up flex justify-start">
-                <div className="max-w-[85%] rounded-[16px] border border-line bg-white px-4 py-3 text-[14px] leading-relaxed text-ink">
-                  {current.prompt}
-                </div>
-              </div>
-            )}
-          </div>
-
           {loading ? (
-            <p className="mt-6 text-center font-editorial italic text-[15px] text-ink-secondary">
+            <p className="mt-12 text-center font-editorial italic text-[15px] text-ink-secondary">
               Writing your questions…
             </p>
           ) : (
-            <div className="mt-5">
+            <div key={builderStep} className="animate-fade-up mt-10">
+              <h2 className="font-display text-[22px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+                {current.prompt}
+              </h2>
+              <div className="mt-5">
               {current.short ? (
                 <Input
                   value={draft}
@@ -273,6 +240,7 @@ export default function NewCampaignPage() {
                   {isLastBuilder ? 'Generate questions' : 'Next'}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
+              </div>
               </div>
             </div>
           )}

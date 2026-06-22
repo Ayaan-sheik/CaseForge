@@ -15,9 +15,9 @@ type Phase =
   | 'invalid'
   | 'idle'
   | 'recording'
-  | 'reviewing'
-  | 'uploading'
-  | 'transcribed';
+  | 'transcribing'
+  | 'review'
+  | 'committing';
 
 interface CurrentQuestion {
   sequence: number;
@@ -35,8 +35,6 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const [phase, setPhase] = useState<Phase>('loading');
   const [current, setCurrent] = useState<CurrentQuestion | null>(null);
   const [coreCount, setCoreCount] = useState(0);
-  const [nextQuestion, setNextQuestion] = useState<CurrentQuestion | null>(null);
-  const [interviewDone, setInterviewDone] = useState(false);
 
   const [elapsed, setElapsed] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
@@ -54,6 +52,9 @@ export default function RecordPage({ params }: { params: { token: string } }) {
   const durationRef = useRef(0);
   const audioUrlRef = useRef<string | null>(null);
   const continuingRef = useRef(false);
+  // Always points at the latest transcribe() so the recorder's onstop (captured
+  // when recording started) calls the version closed over the current question.
+  const transcribeRef = useRef<(blob: Blob) => void>(() => {});
 
   const finish = useCallback(async () => {
     if (continuingRef.current) return;
@@ -150,7 +151,9 @@ export default function RecordPage({ params }: { params: { token: string } }) {
       audioUrlRef.current = url;
       setAudioBlob(blob);
       setAudioUrl(url);
-      setPhase('reviewing');
+      // Auto-transcribe immediately — the client reviews/edits the text next.
+      setPhase('transcribing');
+      transcribeRef.current(blob);
     };
 
     recorderRef.current = recorder;
@@ -181,18 +184,21 @@ export default function RecordPage({ params }: { params: { token: string } }) {
 
   function handleReRecord() {
     discardTake();
+    setTranscript('');
     setError('');
     setPhase('idle');
   }
 
-  async function handleSubmit() {
-    if (!audioBlob || !current) return;
+  // Upload audio + get back the cleaned transcript for review. The turn stays
+  // pending server-side until commit() — nothing is saved as the answer yet.
+  async function transcribe(blob: Blob) {
+    const seq = current?.sequence;
+    if (seq === undefined) return;
     setError('');
-    setPhase('uploading');
 
     const formData = new FormData();
-    formData.append('audio', audioBlob, 'recording.webm');
-    formData.append('sequence', String(current.sequence));
+    formData.append('audio', blob, 'recording.webm');
+    formData.append('sequence', String(seq));
     formData.append('duration', String(durationRef.current));
 
     const res = await fetch(`/api/interview/${params.token}/upload`, {
@@ -202,23 +208,41 @@ export default function RecordPage({ params }: { params: { token: string } }) {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      setError(data.error ?? 'Upload failed — please try submitting again.');
-      setPhase('reviewing');
+      setError(data.error ?? 'We couldn’t transcribe that — please record again.');
+      discardTake();
+      setPhase('idle');
+      return;
+    }
+
+    setTranscript(data.transcript ?? '');
+    setPhase('review');
+  }
+  transcribeRef.current = transcribe;
+
+  // Confirm the (possibly edited) transcript as the answer and advance.
+  async function commit() {
+    if (!current || !transcript.trim()) return;
+    setError('');
+    setPhase('committing');
+
+    const res = await fetch(`/api/interview/${params.token}/commit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sequence: current.sequence, transcript: transcript.trim() }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      setError(data.error ?? 'Could not save your answer — please try again.');
+      setPhase('review');
       return;
     }
 
     discardTake();
-    setTranscript(data.transcript ?? '');
-    setInterviewDone(Boolean(data.done));
-    setNextQuestion((data.nextQuestion as CurrentQuestion) ?? null);
-    setPhase('transcribed');
-  }
+    setTranscript('');
 
-  function handleContinue() {
-    if (!interviewDone && nextQuestion) {
-      setTranscript('');
-      setCurrent(nextQuestion);
-      setNextQuestion(null);
+    if (!data.done && data.nextQuestion) {
+      setCurrent(data.nextQuestion as CurrentQuestion);
       setPhase('idle');
     } else {
       finish();
@@ -281,12 +305,20 @@ export default function RecordPage({ params }: { params: { token: string } }) {
           CaseForge
         </Link>
         <div className="rec-chip">
-          {phase === 'recording' || phase === 'uploading' ? (
+          {phase === 'recording' || phase === 'transcribing' || phase === 'committing' ? (
             <span className="pulse-dot" />
           ) : (
             <span className="h-2 w-2 flex-shrink-0 rounded-full" style={{ background: 'var(--device-line)' }} />
           )}
-          <span>{phase === 'recording' ? 'REC' : phase === 'uploading' ? 'SAVING' : 'READY'}</span>
+          <span>
+            {phase === 'recording'
+              ? 'REC'
+              : phase === 'transcribing'
+                ? 'TRANSCRIBING'
+                : phase === 'committing'
+                  ? 'SAVING'
+                  : 'READY'}
+          </span>
         </div>
       </div>
 
@@ -326,13 +358,28 @@ export default function RecordPage({ params }: { params: { token: string } }) {
           </>
         )}
 
-        {phase === 'reviewing' && audioUrl && (
-          <div className="animate-fade-up flex w-full max-w-md flex-col items-center gap-6">
+        {phase === 'review' && (
+          <div className="animate-fade-up flex w-full max-w-md flex-col gap-4">
             <p className="font-editorial text-[18px] italic" style={{ color: 'var(--device-dim)' }}>
-              Have a listen — happy with it?
+              Here&apos;s what we heard — tweak anything that&apos;s off.
             </p>
-            {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-            <audio src={audioUrl} controls className="w-full" />
+            <textarea
+              value={transcript}
+              rows={6}
+              onChange={(e) => setTranscript(e.target.value)}
+              className="w-full resize-none rounded-[14px] p-4 text-[15px] leading-relaxed outline-none focus:ring-2 focus:ring-accent/60"
+              style={{
+                background: 'rgba(244,241,233,0.08)',
+                color: 'var(--device-text)',
+                border: '1px solid var(--device-line)',
+              }}
+            />
+            {audioUrl && (
+              <>
+                {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+                <audio src={audioUrl} controls className="w-full" />
+              </>
+            )}
             <div className="flex w-full flex-col gap-4 sm:flex-row">
               <Button
                 variant="outline"
@@ -343,31 +390,19 @@ export default function RecordPage({ params }: { params: { token: string } }) {
                 <RotateCcw className="h-5 w-5" />
                 Re-record
               </Button>
-              <Button size="xl" className="flex-1 bg-white text-ink hover:bg-paper" onClick={handleSubmit}>
+              <Button
+                size="xl"
+                className="flex-1 bg-white text-ink hover:bg-paper"
+                onClick={commit}
+                disabled={!transcript.trim()}
+              >
                 Submit answer →
               </Button>
             </div>
           </div>
         )}
 
-        {phase === 'transcribed' && (
-          <div className="animate-fade-up flex w-full max-w-md flex-col gap-4">
-            <p className="font-editorial text-[18px] italic" style={{ color: 'var(--device-dim)' }}>
-              Here&apos;s what we heard:
-            </p>
-            <div
-              className="rounded-[14px] p-4 text-[14px] leading-relaxed"
-              style={{ background: 'rgba(244,241,233,0.08)', color: 'var(--device-text)' }}
-            >
-              {transcript || <em style={{ color: 'var(--device-dim)' }}>No transcript available.</em>}
-            </div>
-            <Button size="xl" className="w-full bg-white text-ink hover:bg-paper" onClick={handleContinue}>
-              {interviewDone ? 'Finish →' : nextQuestion?.isFollowup ? 'Answer follow-up →' : 'Next question →'}
-            </Button>
-          </div>
-        )}
-
-        {phase === 'uploading' && (
+        {(phase === 'transcribing' || phase === 'committing') && (
           <div className="animate-fade-in flex flex-col items-center gap-5">
             <div className="flex h-10 items-center gap-1.5" aria-hidden="true">
               {[14, 26, 18, 32, 22].map((h, i) => (
@@ -379,7 +414,7 @@ export default function RecordPage({ params }: { params: { token: string } }) {
               ))}
             </div>
             <p className="font-mono text-[12px] uppercase tracking-[0.14em]" style={{ color: 'var(--device-dim)' }}>
-              Saving your answer…
+              {phase === 'transcribing' ? 'Transcribing your answer…' : 'Saving your answer…'}
             </p>
           </div>
         )}

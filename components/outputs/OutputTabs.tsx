@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CopyButton } from '@/components/ui/copy-button';
 import { PDFPreview } from '@/components/outputs/PDFPreview';
 import { LinkedInQuoteCard } from '@/components/outputs/LinkedInQuoteCard';
+import { isFilled } from '@/lib/utils/isFilled';
 import type { Output } from '@/lib/types';
 
 interface OutputTabsProps {
@@ -17,7 +18,7 @@ interface OutputTabsProps {
 export function OutputTabs({ output, appUrl, clientName }: OutputTabsProps) {
   const hasWebPage = Boolean(output.web_slug);
   const publicLink = `${appUrl}/case-study/${output.web_slug}`;
-  const quotes = output.case_study?.pull_quotes ?? [];
+  const quotes = (output.case_study?.quotes ?? []).filter((q) => isFilled(q.quote));
 
   return (
     <Tabs defaultValue="pdf">
@@ -79,8 +80,12 @@ export function OutputTabs({ output, appUrl, clientName }: OutputTabsProps) {
           Post one per week — three weeks of proof from a single interview.
         </p>
         <div className="space-y-4">
-          {quotes.map((quote, index) => (
-            <LinkedInQuoteCard key={index} quote={quote} attribution={clientName} />
+          {quotes.map((q, index) => (
+            <LinkedInQuoteCard
+              key={index}
+              quote={q.quote}
+              attribution={isFilled(q.name) ? q.name : clientName}
+            />
           ))}
         </div>
       </TabsContent>

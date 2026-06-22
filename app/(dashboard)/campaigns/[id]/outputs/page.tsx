@@ -75,7 +75,7 @@ export default async function OutputsPage({ params }: { params: { id: string } }
         <div className="mt-6">
           <p className="eyebrow">Outputs · {campaign.client_name}</p>
           <h1 className="mt-4 max-w-2xl font-display text-[clamp(24px,3vw,32px)] font-semibold leading-tight tracking-[-0.025em]">
-            {output.case_study?.title}
+            {output.case_study?.headline_result || campaign.client_name}
           </h1>
         </div>
         {/* Asset status chips */}

@@ -8,8 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils/cn';
 import { ONBOARDING_QUESTIONS } from '@/lib/onboarding/questions';
 
-type Turn = { role: 'assistant' | 'user'; text: string };
-
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -18,14 +16,6 @@ export default function OnboardingPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState('');
-
-  // Build the visible transcript from answers given so far.
-  const transcript: Turn[] = [];
-  for (let i = 0; i < step; i++) {
-    const q = ONBOARDING_QUESTIONS[i];
-    transcript.push({ role: 'assistant', text: q.prompt });
-    transcript.push({ role: 'user', text: answers[q.key] ?? '' });
-  }
 
   const current = ONBOARDING_QUESTIONS[step];
   const isLast = step === ONBOARDING_QUESTIONS.length - 1;
@@ -128,42 +118,16 @@ export default function OnboardingPage() {
         ))}
       </div>
 
-      {/* Transcript */}
-      <div className="space-y-3">
-        {transcript.map((turn, i) => (
-          <div
-            key={i}
-            className={cn('flex', turn.role === 'user' ? 'justify-end' : 'justify-start')}
-          >
-            <div
-              className={cn(
-                'max-w-[85%] rounded-[16px] px-4 py-3 text-[14px] leading-relaxed',
-                turn.role === 'user'
-                  ? 'bg-ink text-paper'
-                  : 'border border-line bg-white text-ink'
-              )}
-            >
-              {turn.text}
-            </div>
-          </div>
-        ))}
-
-        {/* Current question */}
-        {!loading && (
-          <div className="animate-fade-up flex justify-start">
-            <div className="max-w-[85%] rounded-[16px] border border-line bg-white px-4 py-3 text-[14px] leading-relaxed text-ink">
-              {current.prompt}
-            </div>
-          </div>
-        )}
-      </div>
-
       {loading ? (
-        <p className="mt-6 text-center font-editorial italic text-[15px] text-ink-secondary">
+        <p className="mt-12 text-center font-editorial italic text-[15px] text-ink-secondary">
           Putting together your profile…
         </p>
       ) : (
-        <div className="mt-5">
+        <div key={step} className="animate-fade-up">
+          <h2 className="font-display text-[22px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+            {current.prompt}
+          </h2>
+          <div className="mt-5">
           <Textarea
             value={draft}
             rows={3}
@@ -183,6 +147,7 @@ export default function OnboardingPage() {
               {isLast ? 'Finish' : 'Next'}
               <ArrowRight className="h-4 w-4" />
             </Button>
+          </div>
           </div>
         </div>
       )}

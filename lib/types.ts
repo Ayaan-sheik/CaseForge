@@ -52,30 +52,49 @@ export interface ResponseRow {
   created_at: string;
 }
 
-/** A single big-number stat in the results band. */
-export interface CaseStudyStat {
-  value: string;
-  label: string;
+/** A before → after metric row (used in both the snapshot and results table). */
+export interface BeforeAfter {
+  metric: string;
+  before: string;
+  after: string;
 }
 
-/** The full 9-section case study (stored as `outputs.case_study` jsonb). */
-export interface CaseStudy {
+/** A verbatim client quote with attribution. */
+export interface ClientQuote {
+  quote: string;
+  name: string;
   title: string;
-  snapshot: {
-    industry: string;
-    size: string;
-    headline_metric: string;
-  };
-  exec_summary: string;
-  problem: string;
-  solution: string;
-  results: {
-    stats: CaseStudyStat[];
-    prose: string;
-  };
-  /** Verbatim client quotes (never paraphrased). Used for the quote cards. */
-  pull_quotes: string[];
-  about_company: string;
+}
+
+/**
+ * The fixed 9-section case study (stored as `outputs.case_study` jsonb).
+ * Any field with no supporting source data holds an exact `[NEEDS INPUT: …]`
+ * flag rather than invented content; renderers omit unfilled fields publicly.
+ */
+export interface CaseStudy {
+  // §1 Header
+  client_name: string;
+  /** Industry + company size, e.g. "SaaS · ~50 employees". */
+  industry_size: string;
+  /** One-line headline result — the single most impressive outcome. */
+  headline_result: string;
+  // §2 Snapshot — 3-4 before→after stat bullets (fewer if data is thin).
+  snapshot: BeforeAfter[];
+  // §3 The challenge (100-150 words) with a concrete trigger event.
+  challenge: string;
+  // §4 Why they chose the provider (50-80 words).
+  why_chose: string;
+  /** Provider/agency name (from the creator's company_name). */
+  provider_name: string;
+  // §5 What we did — numbered action steps pulled from the transcript.
+  what_we_did: string[];
+  // §6 The results — Metric | Before | After table rows.
+  results: BeforeAfter[];
+  // §7 Client quote(s) — up to 3 verbatim quotes with attribution.
+  quotes: ClientQuote[];
+  // §8 Timeline — one line; empty if not stated in source.
+  timeline: string;
+  // §9 CTA — provider contact/link placeholder.
   cta: string;
 }
 
