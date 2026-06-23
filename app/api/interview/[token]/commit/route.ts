@@ -110,12 +110,17 @@ export async function POST(
     let probe = { probe: false, question: null as string | null };
     if (currentCore && priorFollowups < MAX_FOLLOWUPS_PER_CORE) {
       const context = await loadContext(supabase, campaign.creator_id);
+      const priorAnswers = answered
+        .filter((r) => r.sequence !== sequence)
+        .map((r) => `Q: ${r.question_text}\nA: ${r.transcript_clean}`)
+        .join('\n\n');
       probe = await decideFollowup({
         context,
         brief: campaign.brief,
         coreQuestion: currentCore.question_text ?? '',
         lastAnswer: transcript,
         priorFollowups,
+        priorAnswers,
       }).catch(() => ({ probe: false, question: null }));
     }
 

@@ -33,5 +33,7 @@ export async function generateAndUploadPDF(
     data: { publicUrl },
   } = supabase.storage.from('pdfs').getPublicUrl(path);
 
-  return publicUrl;
+  // The storage path is fixed (upsert), so the public URL is stable. Append a
+  // version param so re-rendered PDFs aren't served stale from browser/CDN cache.
+  return `${publicUrl}?v=${Date.now()}`;
 }

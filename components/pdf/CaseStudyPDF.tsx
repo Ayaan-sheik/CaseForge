@@ -6,120 +6,255 @@ import type { CaseStudy } from '@/lib/types';
 export interface CaseStudyPDFProps {
   caseStudy: CaseStudy;
   clientName: string;
+  serviceProvided?: string;
 }
 
+// Concrete values for the template's design tokens (react-pdf can't use
+// Tailwind/CSS vars). Mirrors tailwind.config.ts.
 const colors = {
-  navy: '#0f172a',
-  accent: '#6366f1',
-  text: '#1e293b',
-  lightBg: '#f8fafc',
-  muted: '#64748b',
+  bgSecondary: '#F6F3EC', // subtle — page background behind the card
+  bgPrimary: '#FFFFFF', // surface — card background
+  border: '#E8E4DA', // line
+  textPrimary: '#191510', // ink
+  textSecondary: '#5C564B', // ink-secondary
+  accent: '#EF3B2D', // info / accent
 };
 
+const RADIUS_LG = 12;
+const RADIUS_MD = 8;
+
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 10, color: colors.text, paddingBottom: 56 },
-  header: { backgroundColor: colors.navy, paddingVertical: 28, paddingHorizontal: 40 },
-  headerLabel: {
-    fontSize: 9,
-    letterSpacing: 2,
-    color: '#a5b4fc',
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 10,
+  page: {
+    fontFamily: 'Helvetica',
+    fontSize: 11,
+    color: colors.textPrimary,
+    backgroundColor: colors.bgSecondary,
+    padding: 24,
   },
-  title: { fontSize: 20, fontFamily: 'Helvetica-Bold', color: '#ffffff', lineHeight: 1.3 },
-  body: { paddingHorizontal: 40, paddingTop: 24 },
-  // Snapshot strip
-  snapshot: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
+  card: {
+    backgroundColor: colors.bgPrimary,
+    borderWidth: 0.5,
+    borderColor: colors.border,
+    borderRadius: RADIUS_LG,
+  },
+
+  // Header
+  header: {
+    paddingTop: 24,
+    paddingHorizontal: 24,
     paddingBottom: 16,
-    marginBottom: 20,
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
   },
-  snapCell: { flex: 1 },
-  snapLabel: {
-    fontSize: 7.5,
-    letterSpacing: 1.2,
-    color: colors.muted,
+  eyebrow: { fontSize: 9.5, color: colors.textSecondary, marginBottom: 5 },
+  title: {
+    fontSize: 18,
     fontFamily: 'Helvetica-Bold',
-    marginBottom: 4,
+    color: colors.textPrimary,
+    lineHeight: 1.25,
+    marginBottom: 6,
   },
-  snapValue: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: colors.navy },
-  headline: { fontSize: 11.5, fontFamily: 'Helvetica-Oblique', color: colors.muted, lineHeight: 1.5, marginBottom: 24 },
-  quoteBox: { backgroundColor: colors.lightBg, borderRadius: 8, padding: 18, marginTop: 4 },
-  quoteMark: { fontSize: 42, fontFamily: 'Helvetica-Bold', color: colors.accent, lineHeight: 1, marginBottom: 2 },
-  quoteText: { fontSize: 11.5, fontFamily: 'Helvetica-Oblique', lineHeight: 1.55, marginBottom: 12 },
-  quoteAttribution: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: colors.navy },
+  subline: { fontSize: 11, color: colors.textSecondary },
+
+  // Snapshot grid
+  snapshot: { flexDirection: 'row', gap: 9, paddingVertical: 18, paddingHorizontal: 24 },
+  snapCell: {
+    flex: 1,
+    backgroundColor: colors.bgSecondary,
+    borderRadius: RADIUS_MD,
+    padding: 10,
+  },
+  snapLabel: { fontSize: 8.5, color: colors.textSecondary, marginBottom: 4 },
+  snapValue: { fontSize: 15, fontFamily: 'Helvetica-Bold', color: colors.textPrimary },
+
+  // Prose sections
+  section: { paddingHorizontal: 24, paddingBottom: 14 },
+  h3: { fontSize: 12.5, fontFamily: 'Helvetica-Bold', color: colors.textPrimary, marginBottom: 5 },
+  body: { fontSize: 11, lineHeight: 1.55, color: colors.textPrimary },
+
+  // What we did — manual ordered list
+  listItem: { flexDirection: 'row', marginBottom: 5 },
+  listMarker: { width: 16, fontSize: 11, color: colors.textSecondary },
+  listText: { flex: 1, fontSize: 11, lineHeight: 1.5, color: colors.textPrimary },
+
+  // Results table
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 0.5,
+    borderBottomColor: colors.border,
+    paddingVertical: 7,
+  },
+  tableRowLast: { flexDirection: 'row', paddingVertical: 7 },
+  thMetric: { flex: 2, fontSize: 9.5, color: colors.textSecondary },
+  thNum: { flex: 1, fontSize: 9.5, color: colors.textSecondary, textAlign: 'right' },
+  tdMetric: { flex: 2, fontSize: 10.5, color: colors.textPrimary },
+  tdBefore: { flex: 1, fontSize: 10.5, color: colors.textPrimary, textAlign: 'right' },
+  tdAfter: {
+    flex: 1,
+    fontSize: 10.5,
+    fontFamily: 'Helvetica-Bold',
+    color: colors.textPrimary,
+    textAlign: 'right',
+  },
+
+  // Testimonial
+  quoteBox: {
+    backgroundColor: colors.bgSecondary,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.accent,
+    borderTopRightRadius: RADIUS_MD,
+    borderBottomRightRadius: RADIUS_MD,
+    padding: 14,
+  },
+  quoteText: {
+    fontFamily: 'Times-Italic',
+    fontSize: 11.5,
+    lineHeight: 1.55,
+    color: colors.textPrimary,
+    marginBottom: 8,
+  },
+  quoteAttribution: { fontSize: 9.5, color: colors.textSecondary },
+
+  // Footer
   footer: {
-    position: 'absolute',
-    bottom: 24,
-    left: 40,
-    right: 40,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#e2e8f0',
-    paddingTop: 10,
+    alignItems: 'center',
+    paddingVertical: 13,
+    paddingHorizontal: 24,
+    borderTopWidth: 0.5,
+    borderTopColor: colors.border,
   },
-  footerText: { fontSize: 8, color: '#94a3b8' },
+  footerLeft: { fontSize: 9.5, color: colors.textSecondary },
+  footerRight: { fontSize: 9.5, color: colors.accent },
 });
 
-/** Condensed sales one-pager: headline + before→after snapshot + lead quote. */
-export function CaseStudyPDF({ caseStudy, clientName }: CaseStudyPDFProps) {
-  const generatedDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+/** Full case study laid out to match templates/caseforge_case_study_template.html. */
+export function CaseStudyPDF({ caseStudy, clientName, serviceProvided }: CaseStudyPDFProps) {
+  const cs = caseStudy;
 
-  const title = isFilled(caseStudy.headline_result)
-    ? caseStudy.headline_result
+  const title = isFilled(cs.headline_result)
+    ? cs.headline_result
     : `${clientName} — case study`;
 
-  const cells = (caseStudy.snapshot ?? [])
+  const snapshot = (cs.snapshot ?? [])
     .filter((s) => isFilled(s.metric) && (isFilled(s.before) || isFilled(s.after)))
-    .slice(0, 3)
-    .map((s) => ({ label: s.metric.toUpperCase(), value: `${s.before} → ${s.after}` }));
+    .slice(0, 4);
+  const results = (cs.results ?? []).filter(
+    (r) => isFilled(r.metric) && (isFilled(r.before) || isFilled(r.after))
+  );
+  const steps = (cs.what_we_did ?? []).filter(isFilled);
+  const lead = (cs.quotes ?? []).find((q) => isFilled(q.quote));
 
-  const lead = (caseStudy.quotes ?? []).find((q) => isFilled(q.quote));
-  const leadAttribution = lead && isFilled(lead.name) ? lead.name : clientName;
+  const subline = [
+    `Client: ${clientName}`,
+    isFilled(serviceProvided) ? `Service: ${serviceProvided}` : null,
+  ]
+    .filter(Boolean)
+    .join('  ·  ');
 
   return (
     <Document title={title} author="CaseForge">
       <Page size="A4" style={styles.page}>
-        <View style={styles.header}>
-          <Text style={styles.headerLabel}>CUSTOMER SUCCESS STORY</Text>
-          <Text style={styles.title}>{title}</Text>
-        </View>
+        <View style={styles.card}>
+          {/* Header */}
+          <View style={styles.header}>
+            {isFilled(cs.industry_size) && (
+              <Text style={styles.eyebrow}>{cs.industry_size}</Text>
+            )}
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subline}>{subline}</Text>
+          </View>
 
-        <View style={styles.body}>
-          {cells.length > 0 && (
+          {/* Snapshot grid */}
+          {snapshot.length > 0 && (
             <View style={styles.snapshot}>
-              {cells.map((c, i) => (
+              {snapshot.map((s, i) => (
                 <View key={i} style={styles.snapCell}>
-                  <Text style={styles.snapLabel}>{c.label}</Text>
-                  <Text style={styles.snapValue}>{c.value}</Text>
+                  <Text style={styles.snapLabel}>{s.metric}</Text>
+                  <Text style={styles.snapValue}>
+                    {s.before} → {s.after}
+                  </Text>
                 </View>
               ))}
             </View>
           )}
 
-          {isFilled(caseStudy.industry_size) && (
-            <Text style={styles.headline}>{caseStudy.industry_size}</Text>
-          )}
-
-          {lead && (
-            <View style={styles.quoteBox}>
-              <Text style={styles.quoteMark}>&ldquo;</Text>
-              <Text style={styles.quoteText}>{lead.quote}</Text>
-              <Text style={styles.quoteAttribution}>— {leadAttribution}</Text>
+          {/* The challenge */}
+          {isFilled(cs.challenge) && (
+            <View style={styles.section}>
+              <Text style={styles.h3}>The challenge</Text>
+              <Text style={styles.body}>{cs.challenge}</Text>
             </View>
           )}
-        </View>
 
-        <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Powered by CaseForge</Text>
-          <Text style={styles.footerText}>Generated {generatedDate}</Text>
+          {/* Why they chose us */}
+          {isFilled(cs.why_chose) && (
+            <View style={styles.section}>
+              <Text style={styles.h3}>
+                Why they chose {isFilled(cs.provider_name) ? cs.provider_name : 'us'}
+              </Text>
+              <Text style={styles.body}>{cs.why_chose}</Text>
+            </View>
+          )}
+
+          {/* What we did */}
+          {steps.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.h3}>What we did</Text>
+              {steps.map((step, i) => (
+                <View key={i} style={styles.listItem}>
+                  <Text style={styles.listMarker}>{i + 1}.</Text>
+                  <Text style={styles.listText}>{step}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* The results */}
+          {results.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.h3}>The results</Text>
+              <View style={styles.tableRow}>
+                <Text style={styles.thMetric}>Metric</Text>
+                <Text style={styles.thNum}>Before</Text>
+                <Text style={styles.thNum}>After</Text>
+              </View>
+              {results.map((r, i) => (
+                <View key={i} style={i === results.length - 1 ? styles.tableRowLast : styles.tableRow}>
+                  <Text style={styles.tdMetric}>{r.metric}</Text>
+                  <Text style={styles.tdBefore}>{r.before}</Text>
+                  <Text style={styles.tdAfter}>{r.after}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Testimonial */}
+          {lead && (
+            <View style={styles.section}>
+              <View style={styles.quoteBox}>
+                <Text style={styles.quoteText}>&ldquo;{lead.quote}&rdquo;</Text>
+                <Text style={styles.quoteAttribution}>
+                  {[
+                    isFilled(lead.name) ? lead.name : clientName,
+                    isFilled(lead.title) ? lead.title : null,
+                    clientName,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* Footer */}
+          {(isFilled(cs.timeline) || isFilled(cs.cta)) && (
+            <View style={styles.footer}>
+              <Text style={styles.footerLeft}>{isFilled(cs.timeline) ? cs.timeline : ' '}</Text>
+              {isFilled(cs.cta) && <Text style={styles.footerRight}>{cs.cta}</Text>}
+            </View>
+          )}
         </View>
       </Page>
     </Document>

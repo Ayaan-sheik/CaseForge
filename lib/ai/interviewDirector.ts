@@ -19,8 +19,10 @@ export async function decideFollowup(args: {
   coreQuestion: string;
   lastAnswer: string;
   priorFollowups: number;
+  /** Formatted Q&A from earlier answered turns in this interview (excludes the current answer). */
+  priorAnswers?: string;
 }): Promise<ProbeDecision> {
-  const { brief, coreQuestion, lastAnswer, priorFollowups } = args;
+  const { brief, coreQuestion, lastAnswer, priorFollowups, priorAnswers } = args;
 
   if (!lastAnswer.trim()) return { probe: false, question: null };
 
@@ -28,11 +30,15 @@ export async function decideFollowup(args: {
     ? `\nOutcomes the consultant believes happened (worth confirming with a real number): ${brief.suspected_metrics.join('; ')}`
     : '';
 
+  const covered = priorAnswers?.trim()
+    ? `\n\nAlready covered earlier in this interview (do NOT ask a follow-up that requests a number, metric, timeframe, name, or detail that already appears below — if the needed fact is already here, set probe=false):\n${priorAnswers.trim()}`
+    : '';
+
   const userPrompt = `Core question asked: "${coreQuestion}"
 Client's answer: "${lastAnswer}"
-Follow-ups already asked on this question: ${priorFollowups}${metrics}
+Follow-ups already asked on this question: ${priorFollowups}${metrics}${covered}
 
-Is the answer specific enough (has a number, a concrete detail, or a clear story), or would ONE short follow-up meaningfully sharpen it — e.g. turning a vague "it saved a lot of time" into "roughly how many hours a week?" If they've already given a solid, specific answer, do not probe.
+Is the answer specific enough (has a number, a concrete detail, or a clear story), or would ONE short follow-up meaningfully sharpen it — e.g. turning a vague "it saved a lot of time" into "roughly how many hours a week?" If they've already given a solid, specific answer, do not probe. Do not re-ask for anything already stated in "Already covered" above, even under a different question.
 
 Return ONLY JSON:
 { "probe": true|false, "question": "the follow-up to ask, warm and conversational, or null" }`;

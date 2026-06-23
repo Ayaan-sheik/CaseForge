@@ -143,6 +143,7 @@ Rules for the arrays:
     const pdfUrl = await generateAndUploadPDF(campaignId, {
       caseStudy,
       clientName: campaign.client_name,
+      serviceProvided: campaign.service_provided,
     });
 
     const { error: upsertError } = await supabase.from('outputs').upsert(

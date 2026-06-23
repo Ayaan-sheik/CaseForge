@@ -18,7 +18,7 @@ async function requireOwnedCampaign(campaignId: string) {
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, creator_id, client_name')
+    .select('id, creator_id, client_name, service_provided')
     .eq('id', campaignId)
     .maybeSingle();
 
@@ -91,6 +91,7 @@ export async function POST(
       const pdfUrl = await generateAndUploadPDF(params.campaignId, {
         caseStudy: output.case_study,
         clientName: result.campaign.client_name,
+        serviceProvided: result.campaign.service_provided,
       });
 
       await admin

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CopyButton } from '@/components/ui/copy-button';
 import { PDFPreview } from '@/components/outputs/PDFPreview';
+import { RegeneratePDFButton } from '@/components/outputs/RegeneratePDFButton';
 import { LinkedInQuoteCard } from '@/components/outputs/LinkedInQuoteCard';
 import { isFilled } from '@/lib/utils/isFilled';
 import type { Output } from '@/lib/types';
@@ -38,6 +39,7 @@ export function OutputTabs({ output, appUrl, clientName }: OutputTabsProps) {
               </Button>
             </a>
           )}
+          {output.case_study && <RegeneratePDFButton campaignId={output.campaign_id} />}
         </div>
         {output.pdf_url ? (
           <PDFPreview pdfUrl={output.pdf_url} />
