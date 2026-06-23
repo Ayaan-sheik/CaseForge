@@ -5,6 +5,6 @@
  * flags stay stored for the creator to act on.
  */
 export function isFilled(value: string | null | undefined): boolean {
-  if (!value) return false;
+  if (!value || typeof value !== 'string') return false;
   return value.trim().length > 0 && !value.trim().startsWith('[NEEDS INPUT');
 }

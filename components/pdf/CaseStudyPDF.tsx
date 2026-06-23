@@ -1,6 +1,7 @@
 import React from 'react';
 import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import { isFilled } from '@/lib/utils/isFilled';
+import { normalizeCaseStudy } from '@/lib/utils/normalizeCaseStudy';
 import type { CaseStudy } from '@/lib/types';
 
 export interface CaseStudyPDFProps {
@@ -65,7 +66,8 @@ const styles = StyleSheet.create({
     padding: 10,
   },
   snapLabel: { fontSize: 8.5, color: colors.textSecondary, marginBottom: 4 },
-  snapValue: { fontSize: 15, fontFamily: 'Helvetica-Bold', color: colors.textPrimary },
+  statAfter: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: colors.textPrimary },
+  statFrom: { fontSize: 9, color: colors.textSecondary, marginTop: 2 },
 
   // Prose sections
   section: { paddingHorizontal: 24, paddingBottom: 14 },
@@ -129,9 +131,24 @@ const styles = StyleSheet.create({
   footerRight: { fontSize: 9.5, color: colors.accent },
 });
 
+/**
+ * Renders a snapshot cell's value as a stat card: the "after" number large/bold
+ * with a muted "from {before}" caption beneath (only when both values exist).
+ */
+function SnapshotValue({ before, after }: { before: string; after: string }) {
+  const big = isFilled(after) ? after : before;
+  const showFrom = isFilled(after) && isFilled(before);
+  return (
+    <View>
+      <Text style={styles.statAfter}>{big}</Text>
+      {showFrom && <Text style={styles.statFrom}>from {before}</Text>}
+    </View>
+  );
+}
+
 /** Full case study laid out to match templates/caseforge_case_study_template.html. */
 export function CaseStudyPDF({ caseStudy, clientName, serviceProvided }: CaseStudyPDFProps) {
-  const cs = caseStudy;
+  const cs = normalizeCaseStudy(caseStudy);
 
   const title = isFilled(cs.headline_result)
     ? cs.headline_result
@@ -172,9 +189,7 @@ export function CaseStudyPDF({ caseStudy, clientName, serviceProvided }: CaseStu
               {snapshot.map((s, i) => (
                 <View key={i} style={styles.snapCell}>
                   <Text style={styles.snapLabel}>{s.metric}</Text>
-                  <Text style={styles.snapValue}>
-                    {s.before} → {s.after}
-                  </Text>
+                  <SnapshotValue before={s.before} after={s.after} />
                 </View>
               ))}
             </View>

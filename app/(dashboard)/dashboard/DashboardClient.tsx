@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/select';
 import { CountUp } from '@/components/ui/count-up';
 import { CampaignCard } from '@/components/dashboard/CampaignCard';
 import { OutputTabs } from '@/components/outputs/OutputTabs';
+import { RegenerateAllPDFsButton } from '@/components/outputs/RegenerateAllPDFsButton';
 import { getStalledInfo, type CampaignWithResponses } from '@/lib/utils/stalledInfo';
 import { cn } from '@/lib/utils/cn';
 import type { Campaign, CampaignStatus, Output } from '@/lib/types';
@@ -145,12 +146,15 @@ export function DashboardClient({ campaigns, appUrl, firstName }: DashboardClien
               : 'Your first story is one link away.'}
           </p>
         </div>
-        <Link href="/campaigns/new">
-          <Button>
-            <Plus className="h-4 w-4" />
-            New campaign
-          </Button>
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          {complete > 0 && <RegenerateAllPDFsButton />}
+          <Link href="/campaigns/new">
+            <Button>
+              <Plus className="h-4 w-4" />
+              New campaign
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Stats */}

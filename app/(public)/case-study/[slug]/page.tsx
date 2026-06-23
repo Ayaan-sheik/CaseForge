@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { createAdminClient } from '@/lib/supabase/server';
 import { isFilled } from '@/lib/utils/isFilled';
+import { normalizeCaseStudy } from '@/lib/utils/normalizeCaseStudy';
 import type { CaseStudy, Output } from '@/lib/types';
 
 interface CaseStudyRecord extends Output {
@@ -48,7 +49,7 @@ export default async function CaseStudyPage({ params }: { params: { slug: string
   const record = await getCaseStudy(params.slug);
   if (!record || !record.campaigns || !record.case_study) notFound();
 
-  const cs: CaseStudy = record.case_study;
+  const cs: CaseStudy = normalizeCaseStudy(record.case_study);
   const clientName = record.campaigns.client_name;
 
   const snapshot = (cs.snapshot ?? []).filter(
