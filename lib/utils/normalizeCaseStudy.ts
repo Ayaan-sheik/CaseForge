@@ -1,4 +1,4 @@
-import type { BeforeAfter, CaseStudy, ClientQuote } from '@/lib/types';
+import type { BeforeAfter, CaseStudy, ClientQuote, NarrativeSection } from '@/lib/types';
 
 /**
  * Coerce any stored `case_study` JSON into the current `CaseStudy` shape so the
@@ -23,6 +23,28 @@ export function normalizeCaseStudy(raw: unknown): CaseStudy {
             before: str(item.before),
             after: str(item.after),
           }))
+      : [];
+
+  const toQuote = (v: unknown): ClientQuote => {
+    const q = (v ?? {}) as Record<string, unknown>;
+    return { quote: str(q.quote), name: str(q.name), title: str(q.title) };
+  };
+
+  const toStringArray = (v: unknown): string[] =>
+    Array.isArray(v) ? v.filter((item): item is string => typeof item === 'string') : [];
+
+  const toNarrativeSections = (v: unknown): NarrativeSection[] =>
+    Array.isArray(v)
+      ? v
+          .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
+          .map((item) => {
+            const quote = toQuote(item.quote);
+            return {
+              heading: str(item.heading),
+              body: toStringArray(item.body),
+              ...(quote.quote.trim() ? { quote } : {}),
+            };
+          })
       : [];
 
   // ── Legacy schema (snapshot/results are objects; uses problem/solution/pull_quotes) ──
@@ -56,6 +78,12 @@ export function normalizeCaseStudy(raw: unknown): CaseStudy {
         .filter((q) => q.quote.trim().length > 0),
       timeline: '',
       cta: str(cs.cta),
+      location: '',
+      team_size: '',
+      key_outcomes: [],
+      narrative_sections: [],
+      transformation: '',
+      conclusion: '',
     };
   }
 
@@ -79,5 +107,11 @@ export function normalizeCaseStudy(raw: unknown): CaseStudy {
       : [],
     timeline: str(cs.timeline),
     cta: str(cs.cta),
+    location: str(cs.location),
+    team_size: str(cs.team_size),
+    key_outcomes: toStringArray(cs.key_outcomes),
+    narrative_sections: toNarrativeSections(cs.narrative_sections),
+    transformation: str(cs.transformation),
+    conclusion: str(cs.conclusion),
   };
 }

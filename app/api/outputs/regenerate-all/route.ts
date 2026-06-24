@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
-import { generateAndUploadPDF } from '@/lib/pdf/generatePDF';
+import { generateAndUploadBothPDFs } from '@/lib/pdf/generatePDF';
 import type { CaseStudy } from '@/lib/types';
 
-// Re-renders one PDF per campaign in a loop, which can exceed the default timeout.
+// Re-renders both PDFs per campaign in a loop, which can exceed the default timeout.
 export const maxDuration = 60;
 
 interface CampaignRow {
@@ -14,9 +14,10 @@ interface CampaignRow {
 
 /**
  * POST /api/outputs/regenerate-all
- * Re-renders the PDF (from the stored case study, no LLM) for every campaign the
- * signed-in user owns that has a generated case study. Used to roll a template
- * change across all existing case studies at once.
+ * Re-renders both the short- and long-form PDFs (from the stored case study, no
+ * LLM) for every campaign the signed-in user owns that has a generated case
+ * study. Used to roll a template change across all existing case studies, and to
+ * backfill the long-form PDF for rows created before it existed.
  */
 export async function POST() {
   const supabase = createClient();
@@ -59,12 +60,15 @@ export async function POST() {
     if (!campaign || !output.case_study) continue;
 
     try {
-      const pdfUrl = await generateAndUploadPDF(output.campaign_id, {
+      const { pdfUrl, pdfUrlLong } = await generateAndUploadBothPDFs(output.campaign_id, {
         caseStudy: output.case_study,
         clientName: campaign.client_name,
         serviceProvided: campaign.service_provided,
       });
-      await admin.from('outputs').update({ pdf_url: pdfUrl }).eq('campaign_id', output.campaign_id);
+      await admin
+        .from('outputs')
+        .update({ pdf_url: pdfUrl, pdf_url_long: pdfUrlLong })
+        .eq('campaign_id', output.campaign_id);
       regenerated += 1;
     } catch (err) {
       console.error(`Bulk PDF regeneration failed for campaign ${output.campaign_id}:`, err);

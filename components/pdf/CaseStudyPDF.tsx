@@ -1,8 +1,16 @@
 import React from 'react';
-import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
+import { Document, Page, Text, View } from '@react-pdf/renderer';
 import { isFilled } from '@/lib/utils/isFilled';
 import { normalizeCaseStudy } from '@/lib/utils/normalizeCaseStudy';
 import type { CaseStudy } from '@/lib/types';
+import { pdfStyles as s } from './pdfStyles';
+import {
+  ClientSnapshotList,
+  NumberedList,
+  QuoteBox,
+  ResultsTable,
+  SnapshotValue,
+} from './pdfParts';
 
 export interface CaseStudyPDFProps {
   caseStudy: CaseStudy;
@@ -10,143 +18,12 @@ export interface CaseStudyPDFProps {
   serviceProvided?: string;
 }
 
-// Concrete values for the template's design tokens (react-pdf can't use
-// Tailwind/CSS vars). Mirrors tailwind.config.ts.
-const colors = {
-  bgSecondary: '#F6F3EC', // subtle — page background behind the card
-  bgPrimary: '#FFFFFF', // surface — card background
-  border: '#E8E4DA', // line
-  textPrimary: '#191510', // ink
-  textSecondary: '#5C564B', // ink-secondary
-  accent: '#EF3B2D', // info / accent
-};
-
-const RADIUS_LG = 12;
-const RADIUS_MD = 8;
-
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: 'Helvetica',
-    fontSize: 11,
-    color: colors.textPrimary,
-    backgroundColor: colors.bgSecondary,
-    padding: 24,
-  },
-  card: {
-    backgroundColor: colors.bgPrimary,
-    borderWidth: 0.5,
-    borderColor: colors.border,
-    borderRadius: RADIUS_LG,
-  },
-
-  // Header
-  header: {
-    paddingTop: 24,
-    paddingHorizontal: 24,
-    paddingBottom: 16,
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
-  },
-  eyebrow: { fontSize: 9.5, color: colors.textSecondary, marginBottom: 5 },
-  title: {
-    fontSize: 18,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.textPrimary,
-    lineHeight: 1.25,
-    marginBottom: 6,
-  },
-  subline: { fontSize: 11, color: colors.textSecondary },
-
-  // Snapshot grid
-  snapshot: { flexDirection: 'row', gap: 9, paddingVertical: 18, paddingHorizontal: 24 },
-  snapCell: {
-    flex: 1,
-    backgroundColor: colors.bgSecondary,
-    borderRadius: RADIUS_MD,
-    padding: 10,
-  },
-  snapLabel: { fontSize: 8.5, color: colors.textSecondary, marginBottom: 4 },
-  statAfter: { fontSize: 18, fontFamily: 'Helvetica-Bold', color: colors.textPrimary },
-  statFrom: { fontSize: 9, color: colors.textSecondary, marginTop: 2 },
-
-  // Prose sections
-  section: { paddingHorizontal: 24, paddingBottom: 14 },
-  h3: { fontSize: 12.5, fontFamily: 'Helvetica-Bold', color: colors.textPrimary, marginBottom: 5 },
-  body: { fontSize: 11, lineHeight: 1.55, color: colors.textPrimary },
-
-  // What we did — manual ordered list
-  listItem: { flexDirection: 'row', marginBottom: 5 },
-  listMarker: { width: 16, fontSize: 11, color: colors.textSecondary },
-  listText: { flex: 1, fontSize: 11, lineHeight: 1.5, color: colors.textPrimary },
-
-  // Results table
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 0.5,
-    borderBottomColor: colors.border,
-    paddingVertical: 7,
-  },
-  tableRowLast: { flexDirection: 'row', paddingVertical: 7 },
-  thMetric: { flex: 2, fontSize: 9.5, color: colors.textSecondary },
-  thNum: { flex: 1, fontSize: 9.5, color: colors.textSecondary, textAlign: 'right' },
-  tdMetric: { flex: 2, fontSize: 10.5, color: colors.textPrimary },
-  tdBefore: { flex: 1, fontSize: 10.5, color: colors.textPrimary, textAlign: 'right' },
-  tdAfter: {
-    flex: 1,
-    fontSize: 10.5,
-    fontFamily: 'Helvetica-Bold',
-    color: colors.textPrimary,
-    textAlign: 'right',
-  },
-
-  // Testimonial
-  quoteBox: {
-    backgroundColor: colors.bgSecondary,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.accent,
-    borderTopRightRadius: RADIUS_MD,
-    borderBottomRightRadius: RADIUS_MD,
-    padding: 14,
-  },
-  quoteText: {
-    fontFamily: 'Times-Italic',
-    fontSize: 11.5,
-    lineHeight: 1.55,
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  quoteAttribution: { fontSize: 9.5, color: colors.textSecondary },
-
-  // Footer
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 13,
-    paddingHorizontal: 24,
-    borderTopWidth: 0.5,
-    borderTopColor: colors.border,
-  },
-  footerLeft: { fontSize: 9.5, color: colors.textSecondary },
-  footerRight: { fontSize: 9.5, color: colors.accent },
-});
-
 /**
- * Renders a snapshot cell's value as a stat card: the "after" number large/bold
- * with a muted "from {before}" caption beneath (only when both values exist).
+ * Short-form case study: a one/two-page summary in the CaseForge cream-card
+ * style. Adopts the short template's content (Client Snapshot list, narrative
+ * Challenge + Transformation, results table, one pull quote). The long-form
+ * story lives in CaseStudyLongPDF.
  */
-function SnapshotValue({ before, after }: { before: string; after: string }) {
-  const big = isFilled(after) ? after : before;
-  const showFrom = isFilled(after) && isFilled(before);
-  return (
-    <View>
-      <Text style={styles.statAfter}>{big}</Text>
-      {showFrom && <Text style={styles.statFrom}>from {before}</Text>}
-    </View>
-  );
-}
-
-/** Full case study laid out to match templates/caseforge_case_study_template.html. */
 export function CaseStudyPDF({ caseStudy, clientName, serviceProvided }: CaseStudyPDFProps) {
   const cs = normalizeCaseStudy(caseStudy);
 
@@ -157,39 +34,37 @@ export function CaseStudyPDF({ caseStudy, clientName, serviceProvided }: CaseStu
   const snapshot = (cs.snapshot ?? [])
     .filter((s) => isFilled(s.metric) && (isFilled(s.before) || isFilled(s.after)))
     .slice(0, 4);
-  const results = (cs.results ?? []).filter(
-    (r) => isFilled(r.metric) && (isFilled(r.before) || isFilled(r.after))
-  );
   const steps = (cs.what_we_did ?? []).filter(isFilled);
   const lead = (cs.quotes ?? []).find((q) => isFilled(q.quote));
 
-  const subline = [
-    `Client: ${clientName}`,
-    isFilled(serviceProvided) ? `Service: ${serviceProvided}` : null,
-  ]
-    .filter(Boolean)
-    .join('  ·  ');
+  const snapshotRows = [
+    { label: 'Client', value: clientName },
+    { label: 'Industry', value: cs.industry_size },
+    { label: 'Location', value: cs.location ?? '' },
+    { label: 'Team size', value: cs.team_size ?? '' },
+    { label: 'Service', value: serviceProvided ?? '' },
+    { label: 'Timeline', value: cs.timeline },
+  ];
 
   return (
     <Document title={title} author="CaseForge">
-      <Page size="A4" style={styles.page}>
-        <View style={styles.card}>
+      <Page size="A4" style={s.page}>
+        <View style={s.card}>
           {/* Header */}
-          <View style={styles.header}>
-            {isFilled(cs.industry_size) && (
-              <Text style={styles.eyebrow}>{cs.industry_size}</Text>
-            )}
-            <Text style={styles.title}>{title}</Text>
-            <Text style={styles.subline}>{subline}</Text>
+          <View style={s.header}>
+            <Text style={s.title}>{title}</Text>
           </View>
 
-          {/* Snapshot grid */}
+          {/* Client snapshot */}
+          <ClientSnapshotList rows={snapshotRows} />
+
+          {/* Snapshot stat grid */}
           {snapshot.length > 0 && (
-            <View style={styles.snapshot}>
-              {snapshot.map((s, i) => (
-                <View key={i} style={styles.snapCell}>
-                  <Text style={styles.snapLabel}>{s.metric}</Text>
-                  <SnapshotValue before={s.before} after={s.after} />
+            <View style={s.snapshot}>
+              {snapshot.map((stat, i) => (
+                <View key={i} style={s.snapCell}>
+                  <Text style={s.snapLabel}>{stat.metric}</Text>
+                  <SnapshotValue before={stat.before} after={stat.after} />
                 </View>
               ))}
             </View>
@@ -197,77 +72,50 @@ export function CaseStudyPDF({ caseStudy, clientName, serviceProvided }: CaseStu
 
           {/* The challenge */}
           {isFilled(cs.challenge) && (
-            <View style={styles.section}>
-              <Text style={styles.h3}>The challenge</Text>
-              <Text style={styles.body}>{cs.challenge}</Text>
-            </View>
-          )}
-
-          {/* Why they chose us */}
-          {isFilled(cs.why_chose) && (
-            <View style={styles.section}>
-              <Text style={styles.h3}>
-                Why they chose {isFilled(cs.provider_name) ? cs.provider_name : 'us'}
-              </Text>
-              <Text style={styles.body}>{cs.why_chose}</Text>
+            <View style={s.section}>
+              <Text style={s.h3}>The challenge</Text>
+              <Text style={s.body}>{cs.challenge}</Text>
             </View>
           )}
 
           {/* What we did */}
           {steps.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.h3}>What we did</Text>
-              {steps.map((step, i) => (
-                <View key={i} style={styles.listItem}>
-                  <Text style={styles.listMarker}>{i + 1}.</Text>
-                  <Text style={styles.listText}>{step}</Text>
-                </View>
-              ))}
+            <View style={s.section}>
+              <Text style={s.h3}>
+                What {isFilled(cs.provider_name) ? cs.provider_name : 'we'} did
+              </Text>
+              <NumberedList items={steps} />
             </View>
           )}
 
           {/* The results */}
-          {results.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.h3}>The results</Text>
-              <View style={styles.tableRow}>
-                <Text style={styles.thMetric}>Metric</Text>
-                <Text style={styles.thNum}>Before</Text>
-                <Text style={styles.thNum}>After</Text>
-              </View>
-              {results.map((r, i) => (
-                <View key={i} style={i === results.length - 1 ? styles.tableRowLast : styles.tableRow}>
-                  <Text style={styles.tdMetric}>{r.metric}</Text>
-                  <Text style={styles.tdBefore}>{r.before}</Text>
-                  <Text style={styles.tdAfter}>{r.after}</Text>
-                </View>
-              ))}
+          {(cs.results ?? []).length > 0 && (
+            <View style={s.section}>
+              <Text style={s.h3}>The results</Text>
+              <ResultsTable results={cs.results} />
+            </View>
+          )}
+
+          {/* The transformation */}
+          {isFilled(cs.transformation) && (
+            <View style={s.section}>
+              <Text style={s.h3}>The transformation</Text>
+              <Text style={s.body}>{cs.transformation}</Text>
             </View>
           )}
 
           {/* Testimonial */}
           {lead && (
-            <View style={styles.section}>
-              <View style={styles.quoteBox}>
-                <Text style={styles.quoteText}>&ldquo;{lead.quote}&rdquo;</Text>
-                <Text style={styles.quoteAttribution}>
-                  {[
-                    isFilled(lead.name) ? lead.name : clientName,
-                    isFilled(lead.title) ? lead.title : null,
-                    clientName,
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}
-                </Text>
-              </View>
+            <View style={s.section}>
+              <QuoteBox quote={lead} clientName={clientName} />
             </View>
           )}
 
           {/* Footer */}
-          {(isFilled(cs.timeline) || isFilled(cs.cta)) && (
-            <View style={styles.footer}>
-              <Text style={styles.footerLeft}>{isFilled(cs.timeline) ? cs.timeline : ' '}</Text>
-              {isFilled(cs.cta) && <Text style={styles.footerRight}>{cs.cta}</Text>}
+          {isFilled(cs.cta) && (
+            <View style={s.footer}>
+              <Text style={s.footerLeft}>{isFilled(cs.timeline) ? cs.timeline : ' '}</Text>
+              <Text style={s.footerRight}>{cs.cta}</Text>
             </View>
           )}
         </View>

@@ -141,11 +141,15 @@ create table if not exists outputs (
   --   solution, results{stats[{value,label}], prose}, pull_quotes[],
   --   about_company, cta }. The PDF one-pager and quote cards derive from this.
   case_study jsonb,
-  pdf_url text,
+  pdf_url text,        -- short-form one-pager PDF
+  pdf_url_long text,   -- long-form (~5-page) story PDF
   web_slug text unique,
   created_at timestamptz default now()
 );
 alter table outputs enable row level security;
+
+-- Backfill for existing databases (no-op on fresh installs):
+alter table outputs add column if not exists pdf_url_long text;
 
 -- Creators can read outputs for their own campaigns
 create policy "Creators read own outputs"

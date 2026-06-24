@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { Download, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +22,12 @@ export function OutputTabs({ output, appUrl, clientName }: OutputTabsProps) {
   const publicLink = `${appUrl}/case-study/${output.web_slug}`;
   const quotes = (output.case_study?.quotes ?? []).filter((q) => isFilled(q.quote));
 
+  // Prefer the long-form in the preview when it exists; fall back to short.
+  const [previewVariant, setPreviewVariant] = useState<'long' | 'short'>(
+    output.pdf_url_long ? 'long' : 'short'
+  );
+  const previewUrl = previewVariant === 'long' ? output.pdf_url_long : output.pdf_url;
+
   return (
     <Tabs defaultValue="pdf">
       <TabsList>
@@ -31,18 +38,46 @@ export function OutputTabs({ output, appUrl, clientName }: OutputTabsProps) {
 
       <TabsContent value="pdf" className="space-y-4">
         <div className="flex flex-wrap items-center gap-3">
+          {output.pdf_url_long && (
+            <a href={output.pdf_url_long} download target="_blank" rel="noreferrer">
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4" />
+                Download long-form
+              </Button>
+            </a>
+          )}
           {output.pdf_url && (
             <a href={output.pdf_url} download target="_blank" rel="noreferrer">
               <Button variant="outline" size="sm">
                 <Download className="h-4 w-4" />
-                Download
+                Download short-form
               </Button>
             </a>
           )}
           {output.case_study && <RegeneratePDFButton campaignId={output.campaign_id} />}
         </div>
-        {output.pdf_url ? (
-          <PDFPreview pdfUrl={output.pdf_url} />
+        {(output.pdf_url_long || output.pdf_url) && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant={previewVariant === 'long' ? 'default' : 'outline'}
+              size="sm"
+              disabled={!output.pdf_url_long}
+              onClick={() => setPreviewVariant('long')}
+            >
+              Long-form
+            </Button>
+            <Button
+              variant={previewVariant === 'short' ? 'default' : 'outline'}
+              size="sm"
+              disabled={!output.pdf_url}
+              onClick={() => setPreviewVariant('short')}
+            >
+              Short-form
+            </Button>
+          </div>
+        )}
+        {previewUrl ? (
+          <PDFPreview pdfUrl={previewUrl} />
         ) : (
           <p className="text-sm text-ink-secondary">
             No PDF available yet.

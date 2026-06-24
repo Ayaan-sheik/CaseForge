@@ -4,21 +4,30 @@ import { createAdminClient } from '@/lib/supabase/server';
 import CaseStudyPDF, {
   type CaseStudyPDFProps,
 } from '@/components/pdf/CaseStudyPDF';
+import CaseStudyLongPDF from '@/components/pdf/CaseStudyLongPDF';
 
-export async function generatePDF(props: CaseStudyPDFProps): Promise<Buffer> {
+/** Which PDF to render: the short-form one-pager or the long-form story. */
+export type PdfVariant = 'short' | 'long';
+
+export async function generatePDF(
+  props: CaseStudyPDFProps,
+  variant: PdfVariant = 'short'
+): Promise<Buffer> {
+  const component = variant === 'long' ? CaseStudyLongPDF : CaseStudyPDF;
   return renderToBuffer(
-    React.createElement(CaseStudyPDF, props) as React.ReactElement
+    React.createElement(component, props) as React.ReactElement
   );
 }
 
-/** Render the case study PDF and upload it to Supabase Storage. Returns the public URL. */
+/** Render one variant and upload it to Supabase Storage. Returns the public URL. */
 export async function generateAndUploadPDF(
   campaignId: string,
-  props: CaseStudyPDFProps
+  props: CaseStudyPDFProps,
+  variant: PdfVariant = 'short'
 ): Promise<string> {
-  const buffer = await generatePDF(props);
+  const buffer = await generatePDF(props, variant);
   const supabase = createAdminClient();
-  const path = `${campaignId}.pdf`;
+  const path = `${campaignId}-${variant}.pdf`;
 
   const { error } = await supabase.storage
     .from('pdfs')
@@ -36,4 +45,16 @@ export async function generateAndUploadPDF(
   // The storage path is fixed (upsert), so the public URL is stable. Append a
   // version param so re-rendered PDFs aren't served stale from browser/CDN cache.
   return `${publicUrl}?v=${Date.now()}`;
+}
+
+/** Render and upload both the short-form and long-form PDFs. */
+export async function generateAndUploadBothPDFs(
+  campaignId: string,
+  props: CaseStudyPDFProps
+): Promise<{ pdfUrl: string; pdfUrlLong: string }> {
+  const [pdfUrl, pdfUrlLong] = await Promise.all([
+    generateAndUploadPDF(campaignId, props, 'short'),
+    generateAndUploadPDF(campaignId, props, 'long'),
+  ]);
+  return { pdfUrl, pdfUrlLong };
 }

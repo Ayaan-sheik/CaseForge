@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
-import { generateAndUploadPDF } from '@/lib/pdf/generatePDF';
+import { generateAndUploadBothPDFs } from '@/lib/pdf/generatePDF';
 import type { Output } from '@/lib/types';
 
 // The synthesize action awaits the full pipeline (LLM + PDF render + upload
@@ -87,8 +87,33 @@ export async function POST(
       );
     }
 
+    // Case studies generated before the long-form fields existed have no
+    // narrative, so a plain re-render would produce a 1-page long-form. Migrate
+    // them by re-running the full synthesis (LLM) once to backfill the narrative.
+    const needsNarrative =
+      !Array.isArray(output.case_study.narrative_sections) ||
+      output.case_study.narrative_sections.length === 0;
+
+    if (needsNarrative) {
+      try {
+        // synthesizeCaseStudy regenerates the case study (with narrative),
+        // renders + uploads both PDFs, upserts outputs, and keeps the web_slug.
+        await synthesizeCaseStudy(params.campaignId);
+        return NextResponse.json({ success: true });
+      } catch (err) {
+        // Don't leave a previously-complete campaign stuck in 'error', and still
+        // give the user a usable PDF: fall back to a plain re-render, which now
+        // yields a multi-page long-form via the structured-field fallback.
+        console.error('Lazy re-synthesis failed, falling back to re-render:', err);
+        await admin
+          .from('campaigns')
+          .update({ status: 'complete', error_message: null })
+          .eq('id', params.campaignId);
+      }
+    }
+
     try {
-      const pdfUrl = await generateAndUploadPDF(params.campaignId, {
+      const { pdfUrl, pdfUrlLong } = await generateAndUploadBothPDFs(params.campaignId, {
         caseStudy: output.case_study,
         clientName: result.campaign.client_name,
         serviceProvided: result.campaign.service_provided,
@@ -96,10 +121,10 @@ export async function POST(
 
       await admin
         .from('outputs')
-        .update({ pdf_url: pdfUrl })
+        .update({ pdf_url: pdfUrl, pdf_url_long: pdfUrlLong })
         .eq('campaign_id', params.campaignId);
 
-      return NextResponse.json({ success: true, pdfUrl });
+      return NextResponse.json({ success: true, pdfUrl, pdfUrlLong });
     } catch (err) {
       console.error('PDF regeneration failed:', err);
       return NextResponse.json(

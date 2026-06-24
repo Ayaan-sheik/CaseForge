@@ -41,6 +41,9 @@ export async function generateText(
   const completion = await getGroq().chat.completions.create({
     model: purpose === 'synthesis' ? GROQ_SYNTHESIS_MODEL : GROQ_MODEL,
     messages,
+    // Synthesis emits a large JSON (the ~5-page long-form narrative); give it
+    // enough room so the response isn't truncated and parseJsonResponse fails.
+    ...(purpose === 'synthesis' ? { max_tokens: 6000 } : {}),
     ...(json ? { response_format: { type: 'json_object' } } : {}),
   });
 

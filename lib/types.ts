@@ -67,6 +67,19 @@ export interface ClientQuote {
 }
 
 /**
+ * One story section of the long-form case study: a narrative heading, one or
+ * more qualitative paragraphs, and an optional verbatim pull quote.
+ */
+export interface NarrativeSection {
+  /** Story-like section title, e.g. "The Challenge: Stuck in the Shared-Lead Trap". */
+  heading: string;
+  /** 2-4 qualitative paragraphs of narrative prose. */
+  body: string[];
+  /** Optional verbatim client quote embedded in the section. */
+  quote?: ClientQuote;
+}
+
+/**
  * The fixed 9-section case study (stored as `outputs.case_study` jsonb).
  * Any field with no supporting source data holds an exact `[NEEDS INPUT: …]`
  * flag rather than invented content; renderers omit unfilled fields publicly.
@@ -96,13 +109,31 @@ export interface CaseStudy {
   timeline: string;
   // §9 CTA — provider contact/link placeholder.
   cta: string;
+
+  // ── Long-form / story fields (optional, additive). The short-form renders a
+  // condensed subset of the same content; the long-form uses the full narrative. ──
+  /** Client Snapshot row — city/region; empty if not stated. */
+  location?: string;
+  /** Client Snapshot row — team/company size in words; empty if not stated. */
+  team_size?: string;
+  /** Long-form "The Results" intro bullets — qualitative key outcomes. */
+  key_outcomes?: string[];
+  /** Ordered story body for the long-form (challenge → strategy → transformation …). */
+  narrative_sections?: NarrativeSection[];
+  /** Short-form closing narrative ("The Transformation"). */
+  transformation?: string;
+  /** Long-form closing narrative ("Conclusion"). */
+  conclusion?: string;
 }
 
 export interface Output {
   id: string;
   campaign_id: string;
   case_study: CaseStudy | null;
+  /** Short-form one-pager PDF URL. */
   pdf_url: string | null;
+  /** Long-form (~5-page) story PDF URL. */
+  pdf_url_long: string | null;
   web_slug: string | null;
   created_at: string;
 }

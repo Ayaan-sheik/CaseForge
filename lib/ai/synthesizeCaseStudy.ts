@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { generateSlug } from '@/lib/utils/generateSlug';
-import { generateAndUploadPDF } from '@/lib/pdf/generatePDF';
+import { generateAndUploadBothPDFs } from '@/lib/pdf/generatePDF';
 import { sendEmail } from '@/lib/email/send';
 import { outputsReadyEmail } from '@/lib/email/templates';
 import type { AgencyContext, CaseStudy } from '@/lib/types';
@@ -13,7 +13,12 @@ Hard rules:
 - Quotes must be VERBATIM from the client's interview transcript — copy their exact words (light grammar cleanup only, no rewriting for punchiness). Do not polish, combine, or paraphrase.
 - THE CHALLENGE must include ONE specific, concrete trigger event or situation (a scaling event, a deadline, a failure point). Do NOT write generic pain-point language like "they were struggling with inefficiency." If the source is vague, write the most specific version possible and flag what's missing with [NEEDS INPUT: …].
 - WHAT WE DID must be concrete action steps pulled literally from the transcript's description of the process — do not generalize steps the source didn't mention.
-- Avoid brochure language and hype ("game-changing", "seamless", "best-in-class", "revolutionary"). Plain, specific, human. 9th-grade reading level.`;
+- Avoid brochure language and hype ("game-changing", "seamless", "best-in-class", "revolutionary"). Plain, specific, human. 9th-grade reading level.
+
+Long-form narrative (narrative_sections, transformation, conclusion):
+- Tell the story like a feature article: each section has a specific, scannable heading and 2-4 short paragraphs of plain narrative prose. You MAY add connective/contextual sentences to make it read as a story, but you must NEVER invent metrics, numbers, names, dates, quotes, or facts that are not in the source. Re-state and contextualize only what the source actually says.
+- A narrative_section's optional "quote" must be a VERBATIM transcript quote — copy exact words, no paraphrase. Omit the quote field entirely if you have no real quote for that section. Do not reuse the same quote across multiple sections.
+- Write enough narrative to support a ~5-page document (aim for 6-8 sections). If the source is genuinely thin, write fewer/shorter sections rather than padding with invented detail or generic filler.`;
 
 interface InterviewTurn {
   sequence: number;
@@ -22,9 +27,9 @@ interface InterviewTurn {
 }
 
 /**
- * Turn the cleaned interview transcript into the full 9-section case study,
- * render the condensed PDF one-pager, and publish the hosted page. Marks the
- * campaign 'complete' on success and 'error' (with a message) on failure.
+ * Turn the cleaned interview transcript into the case study, render both the
+ * short-form one-pager and the long-form (~5-page) story PDFs, and publish the
+ * hosted page. Marks the campaign 'complete' on success and 'error' on failure.
  */
 export async function synthesizeCaseStudy(campaignId: string): Promise<void> {
   const supabase = createAdminClient();
@@ -83,12 +88,14 @@ ${contextBlock}${briefBlock}
 End-user/client interview transcript (the client's own words — the primary source for quotes, results, and why they chose the provider):
 ${transcript}
 
-Generate the 9-section case study. Return ONLY a valid JSON object (no markdown, no preamble). Follow every rule; where the source lacks data for a required slot, write exactly "[NEEDS INPUT: <what's missing>]".
+Generate the case study. Return ONLY a valid JSON object (no markdown, no preamble). Follow every rule; where the source lacks data for a required slot, write exactly "[NEEDS INPUT: <what's missing>]".
 
 {
   "client_name": "${campaign.client_name}",
   "industry_size": "industry + company size if known, else [NEEDS INPUT: industry/size]",
   "headline_result": "§1 one-line headline result — the single most impressive number/outcome stated in the source",
+  "location": "client city/region if stated in the source, else empty string",
+  "team_size": "client team/company size in words if stated (e.g. '8-10 workers'), else empty string",
   "snapshot": [ { "metric": "what is measured", "before": "value before", "after": "value after" } ],
   "challenge": "§3 100-150 words. MUST include one specific, concrete trigger event or situation. No generic pain-point language.",
   "why_chose": "§4 50-80 words. The specific decision factor — what made them pick this provider over alternatives. Paraphrase or short quote if available.",
@@ -96,6 +103,10 @@ Generate the 9-section case study. Return ONLY a valid JSON object (no markdown,
   "what_we_did": ["§5 numbered action steps, each an action pulled literally from the transcript — not a description"],
   "results": [ { "metric": "metric name", "before": "before value", "after": "after value" } ],
   "quotes": [ { "quote": "VERBATIM client quote", "name": "full name", "title": "job title" } ],
+  "key_outcomes": ["short qualitative outcome bullets for the long-form results section, each one stated in or directly supported by the source"],
+  "narrative_sections": [ { "heading": "specific story heading", "body": ["paragraph 1", "paragraph 2"], "quote": { "quote": "VERBATIM client quote", "name": "full name", "title": "job title" } } ],
+  "transformation": "1-2 short paragraphs telling the before→after story arc (the short-form 'Transformation' section). Plain narrative, no invented facts.",
+  "conclusion": "1-2 short paragraphs closing the long-form story. Plain narrative, no invented facts.",
   "timeline": "§8 one line: time from start to the results above — only if explicitly stated, else empty string",
   "cta": "§9 one line placeholder, e.g. '[Provider contact/link]'"
 }
@@ -103,7 +114,9 @@ Generate the 9-section case study. Return ONLY a valid JSON object (no markdown,
 Rules for the arrays:
 - snapshot: 3-4 before→after rows, numbers only. If fewer than 3 real metrics exist, output fewer rows rather than inventing more.
 - results: only metrics explicitly stated in the source. Empty array if none.
-- quotes: up to 3 verbatim quotes. If no usable quote exists, use a single entry [{ "quote": "[NEEDS INPUT: client quote]", "name": "", "title": "" }].`;
+- quotes: up to 3 verbatim quotes. If no usable quote exists, use a single entry [{ "quote": "[NEEDS INPUT: client quote]", "name": "", "title": "" }].
+- key_outcomes: 3-5 short bullets. Each must be supported by the source (a metric, a stated change, or the client's own words). Empty array if the source is too thin.
+- narrative_sections: 7-9 ordered story sections that walk through the engagement: the challenge (with its trigger), why the client needed change, the strategy, what the provider implemented, the results in depth, the operational/process impact, and the transformation. Each section has a specific heading and 3-4 paragraphs; each paragraph is 2-4 full sentences of plain narrative. This should read as a ~5-page feature article. Include a "quote" only when you have a real verbatim quote for that section; otherwise omit the "quote" key. Do not reuse a quote across sections. If the source is genuinely thin, write fewer/shorter sections — never pad with invented detail or filler.`;
 
     const text = await generateText(SYSTEM_PROMPT, userPrompt, true, 'synthesis');
     const caseStudy = parseJsonResponse<CaseStudy>(text);
@@ -131,6 +144,14 @@ Rules for the arrays:
     caseStudy.quotes = Array.isArray(caseStudy.quotes) ? caseStudy.quotes : [];
     caseStudy.timeline = caseStudy.timeline ?? '';
     caseStudy.cta = caseStudy.cta ?? '';
+    caseStudy.location = caseStudy.location ?? '';
+    caseStudy.team_size = caseStudy.team_size ?? '';
+    caseStudy.key_outcomes = Array.isArray(caseStudy.key_outcomes) ? caseStudy.key_outcomes : [];
+    caseStudy.narrative_sections = Array.isArray(caseStudy.narrative_sections)
+      ? caseStudy.narrative_sections
+      : [];
+    caseStudy.transformation = caseStudy.transformation ?? '';
+    caseStudy.conclusion = caseStudy.conclusion ?? '';
 
     // Keep an already-published slug stable across "Retry Processing" runs.
     const { data: existing } = await supabase
@@ -140,7 +161,7 @@ Rules for the arrays:
       .maybeSingle();
     const webSlug = existing?.web_slug ?? generateSlug(campaign.client_name);
 
-    const pdfUrl = await generateAndUploadPDF(campaignId, {
+    const { pdfUrl, pdfUrlLong } = await generateAndUploadBothPDFs(campaignId, {
       caseStudy,
       clientName: campaign.client_name,
       serviceProvided: campaign.service_provided,
@@ -151,6 +172,7 @@ Rules for the arrays:
         campaign_id: campaignId,
         case_study: caseStudy,
         pdf_url: pdfUrl,
+        pdf_url_long: pdfUrlLong,
         web_slug: webSlug,
       },
       { onConflict: 'campaign_id' }
