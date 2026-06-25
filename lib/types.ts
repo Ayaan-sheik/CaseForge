@@ -27,6 +27,10 @@ export interface Campaign {
   service_provided: string;
   client_industry: string | null;
   client_size: string | null;
+  /** Client city/region (creator-supplied, optional) — feeds the case-study snapshot. */
+  client_location: string | null;
+  /** Engagement duration (creator-supplied, optional) — feeds the case-study snapshot. */
+  timeline: string | null;
   brief: EngagementBrief | null;
   status: CampaignStatus;
   magic_token: string;

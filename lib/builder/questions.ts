@@ -7,6 +7,8 @@ export interface BuilderQuestion {
   placeholder: string;
   /** Short single-line answer vs. a narrative paragraph. */
   short?: boolean;
+  /** Skippable — the creator can leave it blank (the field is then omitted). */
+  optional?: boolean;
 }
 
 export const BUILDER_QUESTIONS: BuilderQuestion[] = [
@@ -27,6 +29,20 @@ export const BUILDER_QUESTIONS: BuilderQuestion[] = [
     prompt: 'Roughly how big are they? Team size or revenue is fine.',
     placeholder: 'e.g. 20 employees, ~$3M ARR',
     short: true,
+  },
+  {
+    key: 'client_location',
+    prompt: 'Where are they based? (Optional — helps localize the story.)',
+    placeholder: 'e.g. Austin, TX',
+    short: true,
+    optional: true,
+  },
+  {
+    key: 'timeline',
+    prompt: 'Roughly how long did the engagement run? (Optional.)',
+    placeholder: 'e.g. 3 months, ongoing since Jan 2025',
+    short: true,
+    optional: true,
   },
   {
     key: 'problem',

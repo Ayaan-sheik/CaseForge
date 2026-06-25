@@ -79,9 +79,14 @@ export async function synthesizeCaseStudy(campaignId: string): Promise<void> {
       ? `About the provider: ${context.what_you_do}. Voice to match: ${context.tone}.\n`
       : '';
 
+    const clientLocation = (campaign.client_location as string | null)?.trim() || '';
+    const engagementTimeline = (campaign.timeline as string | null)?.trim() || '';
+
     const userPrompt = `SOURCE DATA
 Client name: ${campaign.client_name}
 Industry + size: ${industrySize || 'unknown'}
+Client location: ${clientLocation || 'unknown'}
+Engagement timeline: ${engagementTimeline || 'unknown'}
 Service provided: ${campaign.service_provided}
 Provider/agency name: ${providerName}
 ${contextBlock}${briefBlock}

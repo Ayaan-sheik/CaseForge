@@ -53,6 +53,8 @@ create table if not exists campaigns (
   -- suspected_metrics[] }. Feeds client-specific question generation + synthesis.
   client_industry text,
   client_size text,
+  client_location text,
+  timeline text,
   brief jsonb,
   status text not null default 'draft'
     check (status in ('draft', 'sent', 'recording', 'processing', 'complete', 'error')),
@@ -65,6 +67,10 @@ create table if not exists campaigns (
   updated_at timestamptz default now()
 );
 alter table campaigns enable row level security;
+
+-- Backfill for existing databases (no-op on fresh installs):
+alter table campaigns add column if not exists client_location text;
+alter table campaigns add column if not exists timeline text;
 
 -- Creators can do anything with their own campaigns
 create policy "Creators manage own campaigns"

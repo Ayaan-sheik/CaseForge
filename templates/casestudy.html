@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CaseForge Case Study HTML Format Template</title>
+  <style>
+    :root {
+      --bg: #f5efe6;
+      --paper: #fffaf3;
+      --card: #ffffff;
+      --ink: #251f1b;
+      --muted: #6f6259;
+      --soft: #eee2d2;
+      --soft-2: #f7ead9;
+      --accent: #9f2d25;
+      --accent-dark: #6f1d17;
+      --line: #e1d4c6;
+      --green: #486b3d;
+      --shadow: 0 22px 70px rgba(69, 49, 34, 0.12);
+      --radius-lg: 28px;
+      --radius-md: 18px;
+      --radius-sm: 12px;
+      --max: 1120px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(159, 45, 37, 0.08), transparent 35rem),
+        linear-gradient(180deg, #f7f0e7 0%, var(--bg) 100%);
+      color: var(--ink);
+      line-height: 1.55;
+    }
+
+    a { color: inherit; }
+
+    .page-shell {
+      width: min(var(--max), calc(100% - 32px));
+      margin: 32px auto;
+      background: var(--paper);
+      border: 1px solid rgba(159, 45, 37, 0.12);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 22px 30px;
+      border-bottom: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.46);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .brand-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 13px;
+      background: var(--accent);
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .topbar-meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      text-align: right;
+    }
+
+    .hero {
+      padding: 56px 58px 34px;
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.65fr);
+      gap: 34px;
+      align-items: stretch;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--accent-dark);
+      font-weight: 750;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    h1, h2, h3, h4 { margin: 0; letter-spacing: -0.045em; line-height: 1.08; }
+
+    h1 {
+      font-size: clamp(2.35rem, 6vw, 4.65rem);
+      max-width: 850px;
+    }
+
+    .hero-subtitle {
+      color: var(--muted);
+      font-size: 1.12rem;
+      max-width: 720px;
+      margin: 22px 0 0;
+    }
+
+    .hero-side {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 22px;
+    }
+
+    .side-label {
+      color: var(--muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .side-value { font-weight: 800; font-size: 1.05rem; }
+
+    .quote-card {
+      border-left: 5px solid var(--accent);
+      background: #fff6ee;
+      border-radius: 16px;
+      padding: 18px;
+      color: #3a2c25;
+      font-weight: 650;
+    }
+
+    .quote-card small {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      padding: 0 58px 46px;
+    }
+
+    .metric {
+      background: var(--soft-2);
+      border: 1px solid #e8d4bf;
+      border-radius: 22px;
+      padding: 22px;
+    }
+
+    .metric .label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      font-weight: 850;
+    }
+
+    .metric .value {
+      display: block;
+      font-size: clamp(1.75rem, 4vw, 3.2rem);
+      line-height: 1;
+      font-weight: 900;
+      letter-spacing: -0.07em;
+      margin-top: 10px;
+    }
+
+    .metric .from {
+      color: var(--muted);
+      margin-top: 7px;
+      font-weight: 700;
+    }
+
+    .content {
+      padding: 0 58px 58px;
+    }
+
+    .section {
+      margin-top: 26px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+
+    .section-header {
+      padding: 24px 26px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: start;
+      gap: 20px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #fff 0%, #fff9f0 100%);
+    }
+
+    .section-kicker {
+      color: var(--accent);
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    h2 { font-size: clamp(1.55rem, 2.8vw, 2.35rem); }
+
+    .section-note {
+      max-width: 340px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      padding: 12px 14px;
+      background: var(--soft);
+      border-radius: 16px;
+      font-weight: 650;
+    }
+
+    .section-body { padding: 26px; }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .rule-card, .example-card, .output-card {
+      background: #fffaf5;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .rule-card h3, .example-card h3, .output-card h3 {
+      font-size: 1.05rem;
+      margin-bottom: 10px;
+      letter-spacing: -0.02em;
+    }
+
+    .rule-card p, .example-card p, .output-card p { margin: 0 0 12px; color: var(--muted); }
+    .rule-card p:last-child, .example-card p:last-child, .output-card p:last-child { margin-bottom: 0; }
+
+    ul, ol { margin: 10px 0 0 1.2rem; padding: 0; }
+    li { margin: 7px 0; }
+
+    .tag-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .tag {
+      display: inline-flex;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: #5e4b40;
+      font-size: 0.82rem;
+      font-weight: 750;
+    }
+
+    .dynamic-name-box {
+      margin-top: 18px;
+      border-radius: 20px;
+      background: #fff3ea;
+      border: 1px dashed rgba(159, 45, 37, 0.45);
+      padding: 18px;
+    }
+
+    .dynamic-name-box strong { color: var(--accent-dark); }
+
+    .example-title-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .title-pill {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 13px;
+      font-weight: 850;
+      color: #392a23;
+    }
+
+    .title-pill small {
+      display: block;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      line-height: 1.3;
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .story-flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .flow-step {
+      padding: 14px;
+      background: var(--soft-2);
+      border: 1px solid #e8d4bf;
+      border-radius: 16px;
+      min-height: 118px;
+    }
+
+    .flow-step b {
+      display: block;
+      color: var(--accent-dark);
+      margin-bottom: 7px;
+      font-size: 0.92rem;
+    }
+
+    .flow-step span { color: var(--muted); font-size: 0.88rem; }
+
+    .code-block {
+      background: #2b211d;
+      color: #fff3e9;
+      border-radius: 18px;
+      padding: 18px;
+      overflow-x: auto;
+      font: 0.88rem/1.55 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      margin-top: 16px;
+      white-space: pre-wrap;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 16px;
+      background: #fffaf5;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+
+    th, td {
+      padding: 13px 14px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: var(--soft);
+      color: #4a382f;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    .length-contract {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    .length-box {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+    }
+
+    .length-box b { display: block; color: var(--accent-dark); margin-bottom: 4px; }
+    .length-box span { color: var(--muted); font-size: 0.9rem; }
+
+    .callout {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 18px;
+      background: #f2eadf;
+      border: 1px solid #ded0c1;
+      color: #493b32;
+      font-weight: 650;
+    }
+
+    .do-dont {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+
+    .do, .dont {
+      padding: 18px;
+      border-radius: 18px;
+      border: 1px solid var(--line);
+      background: #fffaf5;
+    }
+
+    .do h3 { color: var(--green); }
+    .dont h3 { color: var(--accent); }
+
+    .footer {
+      padding: 28px 58px 46px;
+      background: #2b211d;
+      color: #fff3e9;
+    }
+
+    .footer h2 { color: #fff; }
+    .footer p { color: #d8c8bd; max-width: 860px; }
+
+    .footer .code-block {
+      background: #1d1613;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    @media (max-width: 900px) {
+      .hero, .grid-2, .metrics-row, .story-flow, .length-contract, .do-dont, .example-title-row {
+        grid-template-columns: 1fr;
+      }
+      .hero, .content, .metrics-row, .footer { padding-left: 24px; padding-right: 24px; }
+      .section-header { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .topbar-meta { text-align: left; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .page-shell { box-shadow: none; width: 100%; margin: 0; border: none; border-radius: 0; }
+      .section { break-inside: avoid; }
+      .hero, .content, .metrics-row, .footer { padding-left: 34px; padding-right: 34px; }
+      .code-block { white-space: pre-wrap; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <header class="topbar">
+      <div class="brand"><div class="brand-mark">CF</div><div>CaseForge<br><span style="font-weight:650;color:var(--muted);font-size:.88rem;letter-spacing:0">Case Study Format Template</span></div></div>
+      <div class="topbar-meta">HTML prompt-format spec · built to look like the final case study output</div>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">LLM Output Format · Case Study Style</div>
+        <h1>Turn async interview answers into a persuasive B2B case study.</h1>
+        <p class="hero-subtitle">This HTML file is both a visual template and an LLM prompt specification. Each block shows what the final case study should contain, how section names should be generated, and how content should be written.</p>
+      </div>
+      <aside class="hero-side">
+        <div>
+          <div class="side-label">Template Goal</div>
+          <div class="side-value">Generate a full-length, sales-ready case study — not just a short proof card.</div>
+        </div>
+        <div class="quote-card">“The output should feel like a polished client success story while secretly following strict prompt rules.”<small>CaseForge formatting principle</small></div>
+      </aside>
+    </section>
+
+    <section class="metrics-row" aria-label="template metrics">
+      <div class="metric"><span class="label">Target Length</span><span class="value">900–1,400</span><div class="from">words for full case study</div></div>
+      <div class="metric"><span class="label">Core Sections</span><span class="value">8–10</span><div class="from">context-driven blocks</div></div>
+      <div class="metric"><span class="label">Assets Produced</span><span class="value">4</span><div class="from">case study, proof card, quotes, snippets</div></div>
+    </section>
+
+    <div class="content">
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Format Logic</div><h2>Use dynamic section names, not fixed generic labels.</h2></div>
+          <div class="section-note">The model should name each section based on the actual story, not reuse “Challenge,” “Solution,” and “Results” every time.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>Naming Rule</h3>
+              <p>Generate section headings from the client’s old constraint, the strategic mechanism, the change created, or the after-state.</p>
+              <p>Headings should be specific enough that a reader understands the story even when skimming.</p>
+            </div>
+            <div class="example-card">
+              <h3>Do Not Use These By Default</h3>
+              <p>Avoid thin headings such as “The Challenge,” “The Solution,” “The Results,” and “Conclusion” unless there is no better context-driven option.</p>
+            </div>
+          </div>
+          <div class="dynamic-name-box">
+            <strong>Dynamic heading formula:</strong> [Old constraint] → [Strategic mechanism] → [Business change] → [After-state]. Use this formula to create story-specific section names.
+          </div>
+          <div class="example-title-row">
+            <div class="title-pill">Escaping the Shared-Lead Trap<small>Use when the old system was expensive, competitive, or low-quality.</small></div>
+            <div class="title-pill">Turning Completed Jobs Into a 24/7 Local Portfolio<small>Use when the agency created a repeatable proof/distribution engine.</small></div>
+            <div class="title-pill">From Price Shoppers to Pre-Sold Homeowners<small>Use when lead quality or sales conversations improved.</small></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Story Arc</div><h2>The case study must explain the causal chain.</h2></div>
+          <div class="section-note">Do not write “service happened, result improved.” Explain why the work created the result.</div>
+        </div>
+        <div class="section-body">
+          <div class="story-flow">
+            <div class="flow-step"><b>1. Before</b><span>What system, bottleneck, cost, or missed opportunity existed before?</span></div>
+            <div class="flow-step"><b>2. Pain</b><span>Why did that matter financially, operationally, or emotionally?</span></div>
+            <div class="flow-step"><b>3. Mechanism</b><span>What did the agency change that created leverage?</span></div>
+            <div class="flow-step"><b>4. Proof</b><span>What measurable or observable change happened?</span></div>
+            <div class="flow-step"><b>5. After</b><span>How is the client’s business different now?</span></div>
+          </div>
+          <div class="callout">Every full case study should make the reader believe: “This client was like me, this problem was real, the agency’s method made sense, and the result follows logically.”</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 01</div><h2>Hero block: outcome-first headline.</h2></div>
+          <div class="section-note">This is the top of the final case study. It must sell the outcome in one glance.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>Content Rules</h3>
+              <ul>
+                <li>Write a specific outcome-led headline.</li>
+                <li>Mention the client type and primary result.</li>
+                <li>Do not exaggerate beyond the provided data.</li>
+                <li>Use “client-reported” language if metrics are unverified.</li>
+              </ul>
+            </div>
+            <div class="output-card">
+              <h3>Output Fields</h3>
+              <ul>
+                <li><strong>headline:</strong> one sentence</li>
+                <li><strong>subheadline:</strong> 1–2 sentences</li>
+                <li><strong>client_snapshot:</strong> industry, location, team size, service, timeline</li>
+                <li><strong>featured_quote:</strong> strongest concise quote</li>
+              </ul>
+            </div>
+          </div>
+          <div class="code-block">Headline formula:
+How [Client] achieved [specific business result] by [strategic mechanism]
+
+Example:
+How Oasis Hardscapes grew from 3 to 11 large projects per month with an automated local social media engine</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 02</div><h2>Metric cards: show proof before the reader commits.</h2></div>
+          <div class="section-note">Metrics should be prominent, but explained later in the story.</div>
+        </div>
+        <div class="section-body">
+          <table>
+            <thead><tr><th>Metric Type</th><th>When to Use</th><th>Writing Rule</th></tr></thead>
+            <tbody>
+              <tr><td>Revenue / gross</td><td>When exact or client-reported revenue change exists</td><td>Label clearly as revenue, gross, profit, pipeline, or sales.</td></tr>
+              <tr><td>Lead volume</td><td>For agencies, sales, marketing, local services</td><td>Separate raw leads from qualified leads or booked calls.</td></tr>
+              <tr><td>Time saved</td><td>For automation, ops, admin, AI, delivery systems</td><td>Connect hours saved to what the team could do instead.</td></tr>
+              <tr><td>Quality shift</td><td>When numbers are limited</td><td>Use observable proof: better conversations, fewer price shoppers, less manual work.</td></tr>
+            </tbody>
+          </table>
+          <div class="callout">Never invent metrics. If a metric is estimated, label it. If unavailable, use qualitative/proxy proof instead.</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 03</div><h2>Client context: make the reader see similarity.</h2></div>
+          <div class="section-note">This replaces a boring “About the Client” section with a relevant setup.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>Dynamic Name Options</h3>
+              <ul>
+                <li>“A Visual Local Business With No Organic Presence”</li>
+                <li>“A Growing Team Stuck Relying on Third-Party Leads”</li>
+                <li>“A Service Business Sitting on Untapped Proof”</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3>Content Rules</h3>
+              <ul>
+                <li>Explain what the client sells and who they serve.</li>
+                <li>Include team size, geography, market, and service context when available.</li>
+                <li>Only include background details that matter to the result.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="code-block">Write 100–160 words.
+Do not write a generic company bio.
+Frame the client in a way that makes the target reader think: “This sounds like my business.”</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 04</div><h2>Before-state: name the old constraint.</h2></div>
+          <div class="section-note">This is usually one of the most important sections for persuasion.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>What to Capture</h3>
+              <ul>
+                <li>The old process, channel, system, or bottleneck.</li>
+                <li>Why it was expensive, unreliable, slow, manual, or limiting.</li>
+                <li>What the client had already tried.</li>
+                <li>What would happen if nothing changed.</li>
+              </ul>
+            </div>
+            <div class="example-card">
+              <h3>Example Direction</h3>
+              <p>Instead of “The client needed more leads,” write: “Oasis was paying for shared leads that forced them to compete against five other contractors, turning every opportunity into a price battle.”</p>
+            </div>
+          </div>
+          <div class="dynamic-name-box"><strong>Dynamic section name should identify the trap:</strong> “The Shared-Lead Trap,” “The Manual Follow-Up Bottleneck,” “The Invisible Local Brand,” “The Spreadsheet System That Couldn’t Scale.”</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 05</div><h2>Decision and strategy: explain why this approach made sense.</h2></div>
+          <div class="section-note">Do not jump from problem to tasks. Add strategic reasoning.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>Decision Content</h3>
+              <ul>
+                <li>Why the client trusted this provider.</li>
+                <li>What specific outcome they cared about.</li>
+                <li>What made this approach different from alternatives.</li>
+              </ul>
+            </div>
+            <div class="rule-card">
+              <h3>Strategy Content</h3>
+              <ul>
+                <li>Name the mechanism of change.</li>
+                <li>Explain how it solved the root problem.</li>
+                <li>Show the logic before listing execution steps.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="code-block">Dynamic name examples:
+“Why Visual Proof Became the Growth Lever”
+“Building a Local Trust Engine Instead of Buying Shared Leads”
+“Replacing Manual Admin With a Repeatable Intake System”</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 06</div><h2>Implementation: show the work without sounding like a checklist.</h2></div>
+          <div class="section-note">Execution details should prove competence and make the agency’s method feel real.</div>
+        </div>
+        <div class="section-body">
+          <table>
+            <thead><tr><th>Subsection Type</th><th>Use For</th><th>Rule</th></tr></thead>
+            <tbody>
+              <tr><td>System built</td><td>Automation, ops, CRM, content engine, workflows</td><td>Explain how the system worked and what burden it removed.</td></tr>
+              <tr><td>Channels used</td><td>Social, email, ads, SEO, sales outreach</td><td>Explain why these channels matched the client’s market.</td></tr>
+              <tr><td>Assets created</td><td>Landing pages, content, scripts, reports, dashboards</td><td>Focus on business purpose, not only deliverables.</td></tr>
+              <tr><td>Process changed</td><td>Manual to automated, reactive to proactive</td><td>Show before/after workflow difference.</td></tr>
+            </tbody>
+          </table>
+          <div class="do-dont">
+            <div class="do"><h3>Do</h3><p>“The 30-day schedule turned completed projects into consistent local proof, keeping Oasis visible without adding daily work for the owner.”</p></div>
+            <div class="dont"><h3>Don’t</h3><p>“We posted photos, videos, and tags on social media.”</p></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 07</div><h2>Results: combine numbers, explanation, and quotes.</h2></div>
+          <div class="section-note">Results should not feel like disconnected claims.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>Result Paragraph Rules</h3>
+              <ul>
+                <li>State the result clearly.</li>
+                <li>Explain what changed in the client’s business.</li>
+                <li>Connect the result to the mechanism.</li>
+                <li>Add one quote that makes the result believable.</li>
+              </ul>
+            </div>
+            <div class="example-card">
+              <h3>Example Result Explanation</h3>
+              <p>“The biggest change was not just volume. It was lead quality. Homeowners were seeing the work before reaching out, which shifted conversations away from price and toward fit.”</p>
+            </div>
+          </div>
+          <div class="dynamic-name-box"><strong>Dynamic result section names:</strong> “From 3 Projects to 11 Per Month,” “Fewer Manual Hours, Faster Fulfillment,” “Higher-Intent Leads and Better Sales Conversations.”</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Section 08</div><h2>Transformation: show life after the result.</h2></div>
+          <div class="section-note">This is where qualitative proof matters. It turns the case study from stats into a story.</div>
+        </div>
+        <div class="section-body">
+          <div class="grid-2">
+            <div class="rule-card">
+              <h3>Transformation Angles</h3>
+              <ul>
+                <li>What became easier?</li>
+                <li>What did the client stop worrying about?</li>
+                <li>What could the team focus on instead?</li>
+                <li>How did customer behavior change?</li>
+                <li>What confidence or control did they gain?</li>
+              </ul>
+            </div>
+            <div class="example-card">
+              <h3>Example Direction</h3>
+              <p>“For Oasis, marketing stopped being another task on the owner’s plate. It became a background engine that helped sales conversations start with trust already built.”</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Quote System</div><h2>Clean quotes for clarity, but preserve meaning.</h2></div>
+          <div class="section-note">Quotes are trust assets. Bad transcription or unnatural wording damages credibility.</div>
+        </div>
+        <div class="section-body">
+          <table>
+            <thead><tr><th>Quote Type</th><th>Purpose</th><th>Where to Use</th></tr></thead>
+            <tbody>
+              <tr><td>Pain quote</td><td>Shows the old problem in the client’s words</td><td>Before-state section</td></tr>
+              <tr><td>Decision quote</td><td>Explains why the client trusted the provider</td><td>Strategy section</td></tr>
+              <tr><td>Result quote</td><td>Confirms the outcome and business impact</td><td>Results section or hero</td></tr>
+              <tr><td>Transformation quote</td><td>Shows emotional or operational relief</td><td>After-state section</td></tr>
+              <tr><td>Recommendation quote</td><td>Creates sales-ready testimonial copy</td><td>Final section, LinkedIn, proof card</td></tr>
+            </tbody>
+          </table>
+          <div class="callout">Allowed edits: remove filler words, fix grammar, correct obvious transcription errors, and shorten for readability. Do not change claims, invent praise, or add metrics not spoken by the client.</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Length Contract</div><h2>The final case study should be full enough to persuade.</h2></div>
+          <div class="section-note">A proof card can be short. The full case study should have enough context to feel credible.</div>
+        </div>
+        <div class="section-body">
+          <div class="length-contract">
+            <div class="length-box"><b>Hero + Snapshot</b><span>120–180 words</span></div>
+            <div class="length-box"><b>Before + Pain</b><span>220–320 words</span></div>
+            <div class="length-box"><b>Strategy + Work</b><span>250–380 words</span></div>
+            <div class="length-box"><b>Results + After</b><span>300–500 words</span></div>
+          </div>
+          <div class="callout">Target full case study length: 900–1,400 words. If the input is thin, produce a shorter version but mark missing context rather than filling gaps with fake detail.</div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-header">
+          <div><div class="section-kicker">Renderer Output</div><h2>Recommended structured output for your app.</h2></div>
+          <div class="section-note">Generate content section-by-section so your UI can render each block safely.</div>
+        </div>
+        <div class="section-body">
+          <div class="code-block">{
+  "case_study": {
+    "headline": "context-driven outcome headline",
+    "subheadline": "1-2 sentence summary",
+    "snapshot": {
+      "client": "...",
+      "industry": "...",
+      "location": "...",
+      "team_size": "...",
+      "service": "...",
+      "timeline": "..."
+    },
+    "metric_cards": [
+      {"label": "Monthly large projects", "before": "3", "after": "11", "note": "client-reported"}
+    ],
+    "sections": [
+      {
+        "section_type": "before_state",
+        "dynamic_heading": "Escaping the Shared-Lead Trap",
+        "purpose": "Explain the old constraint and why it mattered.",
+        "body": "...",
+        "quote": "optional quote"
+      }
+    ],
+    "quote_bank": {
+      "pain_quote": "...",
+      "result_quote": "...",
+      "transformation_quote": "...",
+      "recommendation_quote": "..."
+    },
+    "proof_card": "short version for PDF/DM/proposal",
+    "linkedin_snippets": ["metric-led post", "story-led post", "problem-solution post"],
+    "missing_context_flags": []
+  }
+}</div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="footer">
+      <h2>Master instruction for the LLM</h2>
+      <p>Use this instruction before the structured input when generating a case study inside CaseForge.</p>
+      <div class="code-block">You are CaseForge, an expert B2B case study writer.
+
+Generate a polished, credible, sales-ready case study from agency setup context and async client interview answers.
+
+Your output must feel like a real case study, not a generic AI summary. Use context-driven section names based on the actual story. Explain the causal chain from old problem to agency mechanism to business result. Combine quantitative proof with qualitative transformation. Never invent metrics, claims, tools, timelines, or client details.
+
+Write with a premium agency-style tone: clear, specific, confident, and practical. Avoid hype. Avoid generic headings unless there is no better context-driven option.
+
+Produce:
+1. Full case study: 900–1,400 words when enough input exists.
+2. Short proof card version.
+3. Clean quote bank.
+4. LinkedIn snippets.
+5. Missing context or verification flags.</div>
+    </footer>
+  </main>
+</body>
+</html>

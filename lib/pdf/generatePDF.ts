@@ -4,7 +4,8 @@ import { createAdminClient } from '@/lib/supabase/server';
 import CaseStudyPDF, {
   type CaseStudyPDFProps,
 } from '@/components/pdf/CaseStudyPDF';
-import CaseStudyLongPDF from '@/components/pdf/CaseStudyLongPDF';
+import { buildCaseStudyLongHtml } from '@/components/pdf/caseStudyLongHtml';
+import { renderHtmlToPdf } from '@/lib/pdf/renderHtmlToPdf';
 
 /** Which PDF to render: the short-form one-pager or the long-form story. */
 export type PdfVariant = 'short' | 'long';
@@ -13,9 +14,13 @@ export async function generatePDF(
   props: CaseStudyPDFProps,
   variant: PdfVariant = 'short'
 ): Promise<Buffer> {
-  const component = variant === 'long' ? CaseStudyLongPDF : CaseStudyPDF;
+  // Long-form renders an HTML template (the casestudy.html visual system) via
+  // headless Chromium; short-form stays on @react-pdf's React renderer.
+  if (variant === 'long') {
+    return renderHtmlToPdf(buildCaseStudyLongHtml(props));
+  }
   return renderToBuffer(
-    React.createElement(component, props) as React.ReactElement
+    React.createElement(CaseStudyPDF, props) as React.ReactElement
   );
 }
 

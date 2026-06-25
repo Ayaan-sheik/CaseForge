@@ -63,7 +63,7 @@ export default function NewCampaignPage() {
   const isLastBuilder = builderStep === BUILDER_QUESTIONS.length - 1;
 
   async function handleBuilderNext() {
-    if (!draft.trim()) return;
+    if (!draft.trim() && !current.optional) return;
     const updated = { ...answers, [current.key]: draft.trim() };
     setAnswers(updated);
     setDraft('');
@@ -83,6 +83,8 @@ export default function NewCampaignPage() {
         clientName: updated.client_name,
         clientIndustry: updated.client_industry,
         clientSize: updated.client_size,
+        clientLocation: updated.client_location,
+        timeline: updated.timeline,
         briefAnswers: {
           problem: updated.problem,
           what_delivered: updated.what_delivered,
@@ -236,8 +238,15 @@ export default function NewCampaignPage() {
                 <span className="font-mono text-[12px] text-ink-secondary">
                   {builderStep + 1} of {BUILDER_QUESTIONS.length}
                 </span>
-                <Button onClick={handleBuilderNext} disabled={!draft.trim()}>
-                  {isLastBuilder ? 'Generate questions' : 'Next'}
+                <Button
+                  onClick={handleBuilderNext}
+                  disabled={!draft.trim() && !current.optional}
+                >
+                  {isLastBuilder
+                    ? 'Generate questions'
+                    : current.optional && !draft.trim()
+                      ? 'Skip'
+                      : 'Next'}
                   <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>

@@ -28,6 +28,9 @@ export async function POST(request: Request) {
   const clientIndustry =
     typeof body?.clientIndustry === 'string' ? body.clientIndustry.trim() : '';
   const clientSize = typeof body?.clientSize === 'string' ? body.clientSize.trim() : '';
+  const clientLocation =
+    typeof body?.clientLocation === 'string' ? body.clientLocation.trim() : '';
+  const timeline = typeof body?.timeline === 'string' ? body.timeline.trim() : '';
   const briefAnswers =
     body?.briefAnswers && typeof body.briefAnswers === 'object' ? body.briefAnswers : null;
 
@@ -68,6 +71,8 @@ export async function POST(request: Request) {
       service_provided: brief.what_delivered || 'their service',
       client_industry: clientIndustry || null,
       client_size: clientSize || null,
+      client_location: clientLocation || null,
+      timeline: timeline || null,
       brief,
       status: 'draft',
       questions,
