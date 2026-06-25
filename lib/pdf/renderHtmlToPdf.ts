@@ -65,9 +65,52 @@ async function launchBrowser(): Promise<Browser> {
   });
 }
 
+/** Escape user-provided text (e.g. client name) before it goes in a template. */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export interface RunningHeader {
+  left: string;
+  right: string;
+}
+export interface RunningFooter {
+  left: string;
+}
+
 export interface RenderHtmlToPdfOptions {
   /** Page format. Defaults to A4 to match the case-study template. */
   format?: 'A4' | 'Letter';
+  /** Slim per-page running header (Chromium repeats it on every page). */
+  runningHeader?: RunningHeader;
+  /** Slim per-page running footer; page numbers are appended automatically. */
+  runningFooter?: RunningFooter;
+}
+
+// Chromium header/footer templates are isolated documents: no shared CSS, the
+// default font-size is 0, so everything is inline-styled with an explicit size.
+// Horizontal padding (32px) matches `.page-shell` so they read as inset.
+function buildHeaderTemplate(h: RunningHeader): string {
+  return `<div style="width:100%;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6f6259;padding:0 32px;-webkit-print-color-adjust:exact;">
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #e1d4c6;padding-bottom:6px;">
+    <span style="display:flex;align-items:center;gap:5px;font-weight:700;color:#251f1b;"><span style="display:inline-block;background:#9f2d25;color:#fff;font-weight:800;border-radius:3px;padding:1px 4px;font-size:8px;">CF</span>${escapeHtml(h.left)}</span>
+    <span>${escapeHtml(h.right)}</span>
+  </div>
+</div>`;
+}
+
+function buildFooterTemplate(f: RunningFooter): string {
+  return `<div style="width:100%;font-family:Arial,Helvetica,sans-serif;font-size:9px;color:#6f6259;padding:0 32px;-webkit-print-color-adjust:exact;">
+  <div style="display:flex;align-items:center;justify-content:space-between;border-top:1px solid #e1d4c6;padding-top:6px;">
+    <span>${escapeHtml(f.left)}</span>
+    <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span>
+  </div>
+</div>`;
 }
 
 export async function renderHtmlToPdf(
@@ -81,10 +124,23 @@ export async function renderHtmlToPdf(
     // web font — can never hang or fail rendering. The template self-contains
     // its fonts, so the visual result does not depend on the network.
     await page.setContent(html, { waitUntil: 'load', timeout: 30_000 });
+    const useHeaderFooter = Boolean(options.runningHeader || options.runningFooter);
     const pdf = await page.pdf({
       format: options.format ?? 'A4',
       printBackground: true,
-      margin: { top: '0px', right: '0px', bottom: '0px', left: '0px' },
+      displayHeaderFooter: useHeaderFooter,
+      // A harmless empty span suppresses Chromium's default date/URL chrome when
+      // only one of header/footer is supplied.
+      headerTemplate: options.runningHeader
+        ? buildHeaderTemplate(options.runningHeader)
+        : '<span></span>',
+      footerTemplate: options.runningFooter
+        ? buildFooterTemplate(options.runningFooter)
+        : '<span></span>',
+      // Reserve top/bottom space so the running header/footer never overlap content.
+      margin: useHeaderFooter
+        ? { top: '72px', right: '0px', bottom: '56px', left: '0px' }
+        : { top: '0px', right: '0px', bottom: '0px', left: '0px' },
     });
     return Buffer.from(pdf);
   } finally {

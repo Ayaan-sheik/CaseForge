@@ -32,6 +32,52 @@ function cleanHeading(value: string): string {
     .trim();
 }
 
+/** First sentence of a passage, truncated — used to derive a hero subheadline. */
+function firstSentence(text: string, maxLen: number): string {
+  const t = text.trim();
+  if (!t) return '';
+  const match = t.match(/^.*?[.!?](\s|$)/);
+  let s = (match ? match[0] : t).trim();
+  if (s.length > maxLen) {
+    s = s.slice(0, maxLen).replace(/[\s,;:]+\S*$/, '').trim() + '…';
+  }
+  return s;
+}
+
+/**
+ * Decide how to render the conclusion. We never rewrite it (that would invent
+ * framing), but we avoid showing a hollow essay ending: suppress it only when it
+ * is *mostly generic* — opens with a boilerplate phrase AND carries no concrete
+ * grounded detail (a number, the client, or the provider). When grounded content
+ * follows a generic opener, strip just the opener; otherwise render as-is.
+ */
+function refineConclusion(conclusion: string, clientName: string, providerName: string): string {
+  if (!isFilled(conclusion)) return '';
+  const text = conclusion.trim();
+  const generic = /^(this case study|in conclusion|in summary|to summarize|this (?:demonstrates|shows|highlights|illustrates)|overall,? this)/i.test(text);
+  if (!generic) return text;
+  const grounded =
+    /[0-9$%]/.test(text) ||
+    (isFilled(clientName) && text.includes(clientName)) ||
+    (isFilled(providerName) && text.includes(providerName));
+  if (!grounded) return '';
+  // Grounded content after a generic opener — drop the opening sentence if there's
+  // substance left, otherwise keep the whole thing rather than hide useful detail.
+  const rest = text.replace(/^[^.!?]*[.!?]\s+/, '').trim();
+  return rest.length > 0 ? rest : text;
+}
+
+/** One key-outcome card; "Label: sentence" splits into a bold label + sentence. */
+function outcomeCard(outcome: string): string {
+  const idx = outcome.indexOf(':');
+  if (idx > 0 && idx < outcome.length - 1) {
+    const label = outcome.slice(0, idx).trim();
+    const sentence = outcome.slice(idx + 1).trim();
+    return `<div class="outcome-card"><b>${esc(label)}</b><span>${esc(sentence)}</span></div>`;
+  }
+  return `<div class="outcome-card"><span>${esc(outcome)}</span></div>`;
+}
+
 function isResultsHeading(heading: string): boolean {
   return /result/i.test(heading);
 }
@@ -142,7 +188,11 @@ export function buildCaseStudyLongHtml({
   const usingDerived = realSections.length === 0;
   const sections = usingDerived ? derived.narrative_sections : realSections;
   const keyOutcomes = realKeyOutcomes.length > 0 ? realKeyOutcomes : derived.key_outcomes;
-  const conclusion = (isFilled(cs.conclusion) ? cs.conclusion : derived.conclusion) ?? '';
+  const conclusion = refineConclusion(
+    (isFilled(cs.conclusion) ? cs.conclusion : derived.conclusion) ?? '',
+    clientName,
+    cs.provider_name
+  );
 
   // Featured quote sits in the hero on the rich path only; on the derived path
   // quotes are distributed inside the sections, so showing one here would dupe it.
@@ -153,6 +203,16 @@ export function buildCaseStudyLongHtml({
   const showResultsTable = hasResultsRows(cs.results);
   const resultsAnchor = sections.findIndex((sec) => isResultsHeading(sec.heading));
 
+  // Show industry only (not the combined "industry · size") in the sidebar/eyebrow;
+  // team size has its own row. Truncate long industry text for display.
+  const industryRaw = (cs.industry_size.split('·')[0] ?? '').trim();
+  const industryDisplay =
+    industryRaw.length > 40 ? industryRaw.slice(0, 40).trim() + '…' : industryRaw;
+
+  // Hero subheadline: the before→after arc, surfaced from the existing transformation
+  // field (rich path only — on the derived path it already becomes a section).
+  const subheadline = usingDerived ? '' : firstSentence(cs.transformation ?? '', 180);
+
   // ── Hero aside: short client-snapshot fields only ──
   const service = serviceProvided ?? '';
   // Long service descriptions don't belong in the narrow sidebar — they move to
@@ -160,7 +220,7 @@ export function buildCaseStudyLongHtml({
   const longService = isFilled(service) && service.length > 120;
   const snapshotHtml = [
     snapshotRow('Client', clientName),
-    snapshotRow('Industry', cs.industry_size),
+    snapshotRow('Industry', industryDisplay),
     snapshotRow('Team size', cs.team_size ?? ''),
     snapshotRow('Location', cs.location ?? ''),
     snapshotRow('Timeline', cs.timeline),
@@ -176,7 +236,7 @@ export function buildCaseStudyLongHtml({
     snapshotHtml || heroQuote
       ? `<aside class="hero-side">${snapshotHtml ? `<div class="snap-list"><div class="side-label">Client snapshot</div>${snapshotHtml}</div>` : ''}${heroQuote}</aside>`
       : '';
-  const eyebrow = isFilled(cs.industry_size) ? cs.industry_size : 'Client success story';
+  const eyebrow = isFilled(industryDisplay) ? industryDisplay : 'Client success story';
 
   // Long service text as its own section card, below the hero.
   const implementedHtml = longService
@@ -187,12 +247,14 @@ export function buildCaseStudyLongHtml({
     ? `<section class="section"><div class="section-body">${quoteCard(overflowQuote, clientName)}</div></section>`
     : '';
 
-  // ── Key outcomes block ──
+  // ── Key outcomes block: 2-col card grid for 4+, bullet list otherwise (thin data) ──
+  const outcomesBody =
+    keyOutcomes.length >= 4
+      ? `<div class="outcome-grid">${keyOutcomes.map(outcomeCard).join('')}</div>`
+      : `<ul>${keyOutcomes.map((o) => `<li>${esc(o)}</li>`).join('')}</ul>`;
   const keyOutcomesHtml =
     keyOutcomes.length > 0
-      ? `<section class="section"><div class="section-header"><div><div class="section-kicker">Outcomes</div><h2>Key outcomes</h2></div></div><div class="section-body"><ul>${keyOutcomes
-          .map((o) => `<li>${esc(o)}</li>`)
-          .join('')}</ul></div></section>`
+      ? `<section class="section"><div class="section-header"><div><div class="section-kicker">Outcomes</div><h2>Key outcomes</h2></div></div><div class="section-body">${outcomesBody}</div></section>`
       : '';
 
   // ── Narrative sections, with the results table injected after the
@@ -226,14 +288,11 @@ export function buildCaseStudyLongHtml({
 </head>
 <body>
 <main class="page-shell">
-  <header class="topbar">
-    <div class="brand"><div class="brand-mark">CF</div><div>CaseForge</div></div>
-    <div class="topbar-meta">Case study</div>
-  </header>
   <section class="hero">
     <div class="hero-main">
       <div class="eyebrow">${esc(eyebrow)}</div>
       <h1>${esc(title)}</h1>
+      ${isFilled(subheadline) ? `<p class="hero-subtitle">${esc(subheadline)}</p>` : ''}
     </div>
     ${heroAside}
   </section>
@@ -246,10 +305,6 @@ export function buildCaseStudyLongHtml({
     ${fallbackTable}
     ${conclusionHtml}
   </div>
-  <footer class="footer">
-    <div class="brand"><div class="brand-mark">CF</div><div>${esc(clientName)} · case study</div></div>
-    <div class="footer-meta">Generated by CaseForge</div>
-  </footer>
 </main>
 </body>
 </html>`;
@@ -258,26 +313,26 @@ export function buildCaseStudyLongHtml({
 /**
  * Print-first visual system adapted from `templates/casestudy.html`. System font
  * stack first (no network font dependency — rendering never blocks on a web font),
- * cream paper, accent maroon, rounded cards, dark footer. `@page { margin: 0 }` +
- * `.page-shell` padding own the page margins (Puppeteer renders at 0 margin); the
- * topbar and footer are inset cards inside the shell, not full-bleed. break-inside
- * rules keep cards intact across page breaks without forcing hard page breaks.
+ * cream paper, accent maroon, rounded cards. `@page { margin: 0 }` + `.page-shell`
+ * padding own the page margins; per-page branding is a slim Chromium running
+ * header/footer (see `renderHtmlToPdf.ts`), not an in-flow topbar/footer.
+ * break-inside rules keep cards intact across page breaks without hard breaks.
  */
 const STYLES = `
-@page{size:A4;margin:0;}
+/* Only set the size — the page margins are owned by Puppeteer's pdf() margin
+   option so the running header/footer get reserved space. A '@page { margin: 0 }'
+   here would override that and make the header/footer overlap page 2+ content. */
+@page{size:A4;}
 :root{--bg:#f5efe6;--paper:#fffaf3;--card:#fff;--ink:#251f1b;--muted:#6f6259;--soft:#eee2d2;--soft-2:#f7ead9;--accent:#9f2d25;--accent-dark:#6f1d17;--line:#e1d4c6;}
 *{box-sizing:border-box;}
 body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
-.page-shell{width:100%;max-width:none;padding:32px;box-sizing:border-box;background:var(--paper);}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:16px 20px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.55);}
-.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:-.03em;}
-.brand-mark{width:34px;height:34px;border-radius:11px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:900;font-size:.9rem;}
-.topbar-meta{color:var(--muted);font-size:.85rem;}
-.hero{min-height:auto;padding:32px 0 24px;display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:28px;align-items:start;}
+.page-shell{width:100%;max-width:none;padding:18px 32px;box-sizing:border-box;background:var(--paper);}
+.hero{min-height:auto;padding:18px 0 24px;display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:28px;align-items:start;}
 .hero-main{min-width:0;}
 .eyebrow{display:inline-flex;padding:6px 12px;border-radius:999px;background:var(--soft);color:var(--accent-dark);font-weight:750;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px;}
 h1,h2{margin:0;letter-spacing:-.04em;line-height:1.1;}
 h1{font-size:40px;line-height:.98;letter-spacing:-.04em;}
+.hero-subtitle{color:var(--muted);font-size:1.02rem;line-height:1.5;margin-top:14px;max-width:92%;}
 .hero-side{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:16px;break-inside:avoid;page-break-inside:avoid;}
 .side-label{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;font-weight:800;margin-bottom:10px;}
 .snap-row{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--line);font-size:.86rem;}
@@ -302,11 +357,12 @@ h2{font-size:1.45rem;}
 .section-body ul{margin:0;padding-left:1.2rem;}
 .section-body li{margin:7px 0;color:#3a2f28;}
 .section-body .quote-card{margin-top:16px;}
+.outcome-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+.outcome-card{background:#fffaf5;border:1px solid var(--line);border-radius:12px;padding:14px;break-inside:avoid;page-break-inside:avoid;}
+.outcome-card b{display:block;color:var(--accent-dark);margin-bottom:4px;font-size:.92rem;}
+.outcome-card span{color:#3a2f28;font-size:.92rem;line-height:1.5;}
 table{width:100%;border-collapse:collapse;background:#fffaf5;border-radius:14px;overflow:hidden;border:1px solid var(--line);break-inside:avoid;page-break-inside:avoid;}
 th,td{padding:12px 14px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top;font-size:.9rem;}
 th{background:var(--soft);color:#4a382f;font-size:.74rem;text-transform:uppercase;letter-spacing:.06em;}
 tr:last-child td{border-bottom:none;}
-.footer{display:flex;align-items:center;justify-content:space-between;gap:18px;margin-top:24px;padding:18px 20px;background:#2b211d;color:#fff3e9;border-radius:14px;}
-.footer .brand{color:#fff;}
-.footer-meta{color:#d8c8bd;font-size:.85rem;}
 `;

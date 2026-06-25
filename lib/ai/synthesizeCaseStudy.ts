@@ -98,7 +98,7 @@ Generate the case study. Return ONLY a valid JSON object (no markdown, no preamb
 {
   "client_name": "${campaign.client_name}",
   "industry_size": "industry + company size if known, else [NEEDS INPUT: industry/size]",
-  "headline_result": "§1 one-line headline result — the single most impressive number/outcome stated in the source",
+  "headline_result": "§1 a transformation-style one-line headline — a clear from→to / outcome arc (e.g. 'From X to Y'), built ONLY from outcomes stated in the source. Never invent or inflate numbers.",
   "location": "client city/region if stated in the source, else empty string",
   "team_size": "client team/company size in words if stated (e.g. '8-10 workers'), else empty string",
   "snapshot": [ { "metric": "what is measured", "before": "value before", "after": "value after" } ],
@@ -111,7 +111,7 @@ Generate the case study. Return ONLY a valid JSON object (no markdown, no preamb
   "key_outcomes": ["short qualitative outcome bullets for the long-form results section, each one stated in or directly supported by the source"],
   "narrative_sections": [ { "heading": "specific story heading", "body": ["paragraph 1", "paragraph 2"], "quote": { "quote": "VERBATIM client quote", "name": "full name", "title": "job title" } } ],
   "transformation": "1-2 short paragraphs telling the before→after story arc (the short-form 'Transformation' section). Plain narrative, no invented facts.",
-  "conclusion": "1-2 short paragraphs closing the long-form story. Plain narrative, no invented facts.",
+  "conclusion": "1-2 short paragraphs closing the long-form story. Reinforce the before → mechanism → after arc using concrete details from the source. Do NOT open with 'This case study…', 'In conclusion…', or 'In summary…', and do not write a generic essay ending. Plain narrative, no invented facts.",
   "timeline": "§8 one line: time from start to the results above — only if explicitly stated, else empty string",
   "cta": "§9 one line placeholder, e.g. '[Provider contact/link]'"
 }
@@ -121,7 +121,7 @@ Rules for the arrays:
 - results: only metrics explicitly stated in the source. Empty array if none.
 - quotes: up to 3 verbatim quotes. If no usable quote exists, use a single entry [{ "quote": "[NEEDS INPUT: client quote]", "name": "", "title": "" }].
 - key_outcomes: 3-5 short bullets. Each must be supported by the source (a metric, a stated change, or the client's own words). Empty array if the source is too thin.
-- narrative_sections: 7-9 ordered story sections that walk through the engagement: the challenge (with its trigger), why the client needed change, the strategy, what the provider implemented, the results in depth, the operational/process impact, and the transformation. Each section has a specific heading and 3-4 paragraphs; each paragraph is 2-4 full sentences of plain narrative. This should read as a ~5-page feature article. Include a "quote" only when you have a real verbatim quote for that section; otherwise omit the "quote" key. Do not reuse a quote across sections. If the source is genuinely thin, write fewer/shorter sections — never pad with invented detail or filler.`;
+- narrative_sections: 7-9 ordered story sections that walk through the engagement: the challenge (with its trigger), why the client needed change, the strategy, what the provider implemented, the results in depth, the operational/process impact, and the transformation. Use specific, story-driven headings grounded in this engagement (e.g. "Trapped in the Shared-Lead Race", "Building a 24/7 Local Portfolio"); do NOT use generic labels like "The Challenge", "The Solution", "Results", or "Conclusion" unless the transcript is too thin to support a specific heading. Each section has a specific heading and 3-4 paragraphs; each paragraph is 2-4 full sentences of plain narrative. This should read as a ~5-page feature article. Include a "quote" only when you have a real verbatim quote for that section; otherwise omit the "quote" key. Do not reuse a quote across sections. If the source is genuinely thin, write fewer/shorter sections — never pad with invented detail or filler.`;
 
     const text = await generateText(SYSTEM_PROMPT, userPrompt, true, 'synthesis');
     const caseStudy = parseJsonResponse<CaseStudy>(text);
