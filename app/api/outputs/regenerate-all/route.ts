@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { generateAndUploadBothPDFs } from '@/lib/pdf/generatePDF';
-import type { CaseStudy } from '@/lib/types';
+import type {
+  CaseStudy,
+  ContentSufficiency,
+  StoryBlocks,
+  ValidatedMetric,
+} from '@/lib/types';
 
 // Re-renders both PDFs per campaign in a loop, which can exceed the default timeout.
 export const maxDuration = 60;
@@ -45,12 +50,20 @@ export async function POST() {
 
   const { data: outputs } = await admin
     .from('outputs')
-    .select('campaign_id, case_study')
+    .select('campaign_id, case_study, story_blocks, validated_metrics, content_sufficiency')
     .in(
       'campaign_id',
       campaigns.map((c) => c.id)
     )
-    .returns<{ campaign_id: string; case_study: CaseStudy | null }[]>();
+    .returns<
+      {
+        campaign_id: string;
+        case_study: CaseStudy | null;
+        story_blocks: StoryBlocks | null;
+        validated_metrics: ValidatedMetric[] | null;
+        content_sufficiency: ContentSufficiency | null;
+      }[]
+    >();
 
   let regenerated = 0;
   let failed = 0;
@@ -64,6 +77,10 @@ export async function POST() {
         caseStudy: output.case_study,
         clientName: campaign.client_name,
         serviceProvided: campaign.service_provided,
+        // Phase 5 artifacts when present — graceful fallback to case-study fields otherwise.
+        storyBlocks: output.story_blocks,
+        validatedMetrics: output.validated_metrics,
+        contentSufficiency: output.content_sufficiency,
       });
       await admin
         .from('outputs')

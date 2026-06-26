@@ -50,11 +50,22 @@ create table if not exists campaigns (
   service_provided text not null,
   -- Snapshot-strip fields (creator-supplied) + engagement brief captured in the
   -- conversational builder. brief shape: { problem, what_delivered, what_changed,
-  -- suspected_metrics[] }. Feeds client-specific question generation + synthesis.
+  -- suspected_metrics[], and (premium_long_form only) before_state, tried_before,
+  -- implementation_components[], key_business_change, expected_results_to_verify }.
+  -- Feeds client-specific question generation + synthesis.
   client_industry text,
   client_size text,
   client_location text,
   timeline text,
+  -- Case-study depth mode. 'standard' = low-friction; 'premium_long_form' = deeper
+  -- collection + longer interview for a 4-6 page case study.
+  case_study_mode text not null default 'standard'
+    check (case_study_mode in ('standard', 'premium_long_form')),
+  -- Structured before/after metrics. Each: { name, before_value?, after_value?,
+  -- unit?, timeframe?, status: 'agency_claimed'|'client_confirmed'|'unverified',
+  -- source?: 'campaign_builder'|'client_interview'|'synthesis' }. Agency-entered
+  -- metrics are 'agency_claimed' until confirmed by the client interview.
+  metrics jsonb not null default '[]'::jsonb,
   brief jsonb,
   status text not null default 'draft'
     check (status in ('draft', 'sent', 'recording', 'processing', 'complete', 'error')),
@@ -71,6 +82,12 @@ alter table campaigns enable row level security;
 -- Backfill for existing databases (no-op on fresh installs):
 alter table campaigns add column if not exists client_location text;
 alter table campaigns add column if not exists timeline text;
+alter table campaigns add column if not exists case_study_mode text not null default 'standard';
+alter table campaigns add column if not exists metrics jsonb not null default '[]'::jsonb;
+-- Guard the mode values (drop-then-add keeps the backfill idempotent).
+alter table campaigns drop constraint if exists campaigns_case_study_mode_check;
+alter table campaigns add constraint campaigns_case_study_mode_check
+  check (case_study_mode in ('standard', 'premium_long_form'));
 
 -- Creators can do anything with their own campaigns
 create policy "Creators manage own campaigns"
@@ -149,6 +166,12 @@ create table if not exists outputs (
   case_study jsonb,
   pdf_url text,        -- short-form one-pager PDF
   pdf_url_long text,   -- long-form (~5-page) story PDF
+  -- Phase 3 intermediate artifacts (grounded inputs the synthesizer + renderer
+  -- consume). story_blocks = structured story material; validated_metrics =
+  -- metrics with code-computed percentages; content_sufficiency = the depth score.
+  story_blocks jsonb,
+  validated_metrics jsonb,
+  content_sufficiency jsonb,
   web_slug text unique,
   created_at timestamptz default now()
 );
@@ -156,6 +179,9 @@ alter table outputs enable row level security;
 
 -- Backfill for existing databases (no-op on fresh installs):
 alter table outputs add column if not exists pdf_url_long text;
+alter table outputs add column if not exists story_blocks jsonb;
+alter table outputs add column if not exists validated_metrics jsonb;
+alter table outputs add column if not exists content_sufficiency jsonb;
 
 -- Creators can read outputs for their own campaigns
 create policy "Creators read own outputs"

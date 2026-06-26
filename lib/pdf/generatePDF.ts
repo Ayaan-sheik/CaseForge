@@ -4,14 +4,25 @@ import { createAdminClient } from '@/lib/supabase/server';
 import CaseStudyPDF, {
   type CaseStudyPDFProps,
 } from '@/components/pdf/CaseStudyPDF';
-import { buildCaseStudyLongHtml } from '@/components/pdf/caseStudyLongHtml';
+import {
+  buildCaseStudyLongHtml,
+  type LongFormArtifacts,
+} from '@/components/pdf/caseStudyLongHtml';
 import { renderHtmlToPdf } from '@/lib/pdf/renderHtmlToPdf';
 
 /** Which PDF to render: the short-form one-pager or the long-form story. */
 export type PdfVariant = 'short' | 'long';
 
+/**
+ * Props for PDF generation. The short-form uses only the base case study; the
+ * long-form additionally consumes the optional Phase 3/5 artifacts (story blocks,
+ * validated metrics, content sufficiency) for adaptive depth + production guards.
+ * Artifacts are optional so re-render flows degrade gracefully when absent.
+ */
+export type GeneratePdfProps = CaseStudyPDFProps & LongFormArtifacts;
+
 export async function generatePDF(
-  props: CaseStudyPDFProps,
+  props: GeneratePdfProps,
   variant: PdfVariant = 'short'
 ): Promise<Buffer> {
   // Long-form renders an HTML template (the casestudy.html visual system) via
@@ -30,7 +41,7 @@ export async function generatePDF(
 /** Render one variant and upload it to Supabase Storage. Returns the public URL. */
 export async function generateAndUploadPDF(
   campaignId: string,
-  props: CaseStudyPDFProps,
+  props: GeneratePdfProps,
   variant: PdfVariant = 'short'
 ): Promise<string> {
   const buffer = await generatePDF(props, variant);
@@ -58,7 +69,7 @@ export async function generateAndUploadPDF(
 /** Render and upload both the short-form and long-form PDFs. */
 export async function generateAndUploadBothPDFs(
   campaignId: string,
-  props: CaseStudyPDFProps
+  props: GeneratePdfProps
 ): Promise<{ pdfUrl: string; pdfUrlLong: string }> {
   const [pdfUrl, pdfUrlLong] = await Promise.all([
     generateAndUploadPDF(campaignId, props, 'short'),

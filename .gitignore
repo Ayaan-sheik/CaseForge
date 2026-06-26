@@ -1,3 +1,6 @@
+# benchmark / local analysis output
+benchmark-results/
+
 # dependencies
 /node_modules
 

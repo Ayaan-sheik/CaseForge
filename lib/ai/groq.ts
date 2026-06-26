@@ -32,14 +32,15 @@ export async function generateText(
   system: string,
   user: string,
   json = false,
-  purpose: LlmPurpose = 'chat'
+  purpose: LlmPurpose = 'chat',
+  modelOverride?: string
 ): Promise<string> {
   const messages: Groq.Chat.ChatCompletionMessageParam[] = [];
   if (system) messages.push({ role: 'system', content: system });
   messages.push({ role: 'user', content: user });
 
   const completion = await getGroq().chat.completions.create({
-    model: purpose === 'synthesis' ? GROQ_SYNTHESIS_MODEL : GROQ_MODEL,
+    model: modelOverride ?? (purpose === 'synthesis' ? GROQ_SYNTHESIS_MODEL : GROQ_MODEL),
     messages,
     // Synthesis emits a large JSON (the ~5-page long-form narrative); give it
     // enough room so the response isn't truncated and parseJsonResponse fails.

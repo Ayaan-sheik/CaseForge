@@ -1,12 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
 import { decideFollowup } from '@/lib/ai/interviewDirector';
-import {
-  coreNumberFor,
-  MAX_FOLLOWUPS_PER_CORE,
-  MAX_TURNS,
-  type TurnRow,
-} from '@/lib/interview/turns';
+import { capsForMode, coreNumberFor, type TurnRow } from '@/lib/interview/turns';
 import type { AgencyContext, Campaign, Question } from '@/lib/types';
 
 // The director call (an LLM round-trip) can exceed Vercel's default timeout.
@@ -29,7 +24,7 @@ export async function POST(
 
   const { data: campaign } = await supabase
     .from('campaigns')
-    .select('id, status, questions, brief, creator_id')
+    .select('id, status, questions, brief, creator_id, case_study_mode, metrics')
     .eq('magic_token', params.token)
     .maybeSingle<Campaign>();
 
@@ -104,11 +99,13 @@ export async function POST(
     : 0;
   const maxSeq = rows.reduce((m, r) => Math.max(m, r.sequence), 0);
 
+  const { maxTurns, maxFollowupsPerCore } = capsForMode(campaign.case_study_mode);
+
   let next: { text: string; isFollowup: boolean } | null = null;
 
-  if (answered.length < MAX_TURNS) {
+  if (answered.length < maxTurns) {
     let probe = { probe: false, question: null as string | null };
-    if (currentCore && priorFollowups < MAX_FOLLOWUPS_PER_CORE) {
+    if (currentCore && priorFollowups < maxFollowupsPerCore) {
       const context = await loadContext(supabase, campaign.creator_id);
       const priorAnswers = answered
         .filter((r) => r.sequence !== sequence)
@@ -121,6 +118,8 @@ export async function POST(
         lastAnswer: transcript,
         priorFollowups,
         priorAnswers,
+        mode: campaign.case_study_mode,
+        metrics: campaign.metrics,
       }).catch(() => ({ probe: false, question: null }));
     }
 

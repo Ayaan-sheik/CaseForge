@@ -97,7 +97,9 @@ export async function PATCH(
         body.questionId,
         Array.isArray(body.questions) ? body.questions : campaign.questions ?? [],
         profile?.context ?? null,
-        campaign.brief ?? null
+        campaign.brief ?? null,
+        campaign.case_study_mode ?? 'standard',
+        campaign.metrics ?? null
       );
       return NextResponse.json({ question });
     } catch (err) {

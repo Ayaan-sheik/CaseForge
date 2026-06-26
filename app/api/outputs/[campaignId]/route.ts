@@ -117,6 +117,10 @@ export async function POST(
         caseStudy: output.case_study,
         clientName: result.campaign.client_name,
         serviceProvided: result.campaign.service_provided,
+        // Phase 5 artifacts when present — graceful fallback to case-study fields otherwise.
+        storyBlocks: output.story_blocks ?? null,
+        validatedMetrics: output.validated_metrics ?? null,
+        contentSufficiency: output.content_sufficiency ?? null,
       });
 
       await admin

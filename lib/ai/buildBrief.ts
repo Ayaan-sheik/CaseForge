@@ -4,17 +4,38 @@ import { generateText, parseJsonResponse } from './groq';
 const SYSTEM_PROMPT = `You structure a consultant's notes about a client engagement into a clean brief that will guide a case-study interview. You NEVER invent facts — only organize what they said. Preserve every number, percentage, and dollar amount exactly. Pull out any outcome/number claims into "suspected_metrics" so they can be confirmed by the client later.`;
 
 /**
+ * Premium long-form creator fields (collected only in premium_long_form mode).
+ * Stored on the brief verbatim — never sent through the LLM to be reworded — so
+ * they stay grounded. `expected_results_to_verify` is also fed to the model as
+ * context so its claims surface in `suspected_metrics`.
+ */
+export interface PremiumBriefFields {
+  before_state?: string;
+  tried_before?: string;
+  implementation_components?: string[];
+  key_business_change?: string;
+  expected_results_to_verify?: string;
+}
+
+/**
  * Turn the builder's narrative answers (problem / what was delivered / what
  * changed) into a structured EngagementBrief. Single Groq call (chat tier).
+ * Premium long-form fields are attached verbatim (not invented or reworded).
  */
 export async function summarizeBrief(
-  answers: Record<string, string>
+  answers: Record<string, string>,
+  premium?: PremiumBriefFields
 ): Promise<EngagementBrief> {
+  const expected = premium?.expected_results_to_verify?.trim();
+  const expectedBlock = expected
+    ? `\nResults/metrics to verify (per the consultant — include these in suspected_metrics): ${expected}`
+    : '';
+
   const userPrompt = `Here is what the consultant said about the engagement:
 
 Problem before: ${answers.problem?.trim() || '(not given)'}
 What they delivered: ${answers.what_delivered?.trim() || '(not given)'}
-What changed: ${answers.what_changed?.trim() || '(not given)'}
+What changed: ${answers.what_changed?.trim() || '(not given)'}${expectedBlock}
 
 Return ONLY a JSON object (no markdown, no preamble):
 {
@@ -32,6 +53,22 @@ Return ONLY a JSON object (no markdown, no preamble):
   }
   if (!Array.isArray(brief.suspected_metrics)) {
     brief.suspected_metrics = [];
+  }
+
+  // Attach premium long-form fields verbatim — omit any that are empty.
+  if (premium) {
+    const beforeState = premium.before_state?.trim();
+    const triedBefore = premium.tried_before?.trim();
+    const keyChange = premium.key_business_change?.trim();
+    const components = (premium.implementation_components ?? [])
+      .map((c) => c.trim())
+      .filter(Boolean);
+
+    if (beforeState) brief.before_state = beforeState;
+    if (triedBefore) brief.tried_before = triedBefore;
+    if (keyChange) brief.key_business_change = keyChange;
+    if (expected) brief.expected_results_to_verify = expected;
+    if (components.length > 0) brief.implementation_components = components;
   }
 
   return brief;

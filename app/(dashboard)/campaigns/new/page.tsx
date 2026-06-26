@@ -8,7 +8,11 @@ import {
   ChevronDown,
   Mail,
   MessageSquare,
+  Plus,
   RefreshCw,
+  Sparkles,
+  Trash2,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,8 +20,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { CopyButton } from '@/components/ui/copy-button';
 import { MagicLinkCard } from '@/components/dashboard/MagicLinkCard';
 import { cn } from '@/lib/utils/cn';
-import { BUILDER_QUESTIONS } from '@/lib/builder/questions';
-import type { Question } from '@/lib/types';
+import { builderQuestionsForMode } from '@/lib/builder/questions';
+import type { CaseStudyMode, Question } from '@/lib/types';
 
 type Step = 1 | 2 | 3;
 
@@ -27,15 +31,58 @@ const STEP_LABELS = [
   { label: 'The link', ts: '05:00' },
 ];
 
+/** A draft metric row in the premium builder's structured-metrics editor. */
+interface MetricDraft {
+  name: string;
+  before_value: string;
+  after_value: string;
+  unit: string;
+  timeframe: string;
+}
+
+const emptyMetric = (): MetricDraft => ({
+  name: '',
+  before_value: '',
+  after_value: '',
+  unit: '',
+  timeframe: '',
+});
+
+const MODE_OPTIONS: {
+  value: CaseStudyMode;
+  icon: typeof Zap;
+  title: string;
+  blurb: string;
+  meta: string;
+}[] = [
+  {
+    value: 'standard',
+    icon: Zap,
+    title: 'Standard',
+    blurb: 'A few quick questions. Best for a short, sharp case study or testimonial.',
+    meta: '~5 min interview',
+  },
+  {
+    value: 'premium_long_form',
+    icon: Sparkles,
+    title: 'Premium long-form',
+    blurb:
+      'Deeper context + a longer interview to support a 4–6 page editorial case study.',
+    meta: '~10–15 min interview',
+  },
+];
+
 export default function NewCampaignPage() {
   const [step, setStep] = useState<Step>(1);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Step 1 — guided brief chat
+  // Step 1 — depth mode, guided brief chat, premium structured metrics
+  const [mode, setMode] = useState<CaseStudyMode | null>(null);
   const [builderStep, setBuilderStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState('');
+  const [metrics, setMetrics] = useState<MetricDraft[]>([emptyMetric()]);
 
   const [campaignId, setCampaignId] = useState('');
   const [magicToken, setMagicToken] = useState('');
@@ -59,10 +106,67 @@ export default function NewCampaignPage() {
 
   const smsTemplate = `Hi ${clientName}! Could you share quick feedback on our work together? A few voice questions, right from your phone: ${shareLink}`;
 
-  const current = BUILDER_QUESTIONS[builderStep];
-  const isLastBuilder = builderStep === BUILDER_QUESTIONS.length - 1;
+  const isPremium = mode === 'premium_long_form';
+  const activeQuestions = mode ? builderQuestionsForMode(mode) : [];
+  const current = activeQuestions[builderStep];
+  const isLastBuilder = builderStep === activeQuestions.length - 1;
+  // Premium adds a trailing structured-metrics step after the last question.
+  const onMetricsStep = isPremium && builderStep === activeQuestions.length;
+  const totalSteps = activeQuestions.length + (isPremium ? 1 : 0);
+
+  /** Structure the brief + generate questions, then advance to step 2. */
+  async function submitCampaign(
+    finalAnswers: Record<string, string>,
+    finalMetrics: MetricDraft[]
+  ) {
+    setLoading(true);
+    setError('');
+
+    const implementationComponents = (finalAnswers.implementation_components ?? '')
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    const res = await fetch('/api/campaigns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientName: finalAnswers.client_name,
+        clientIndustry: finalAnswers.client_industry,
+        clientSize: finalAnswers.client_size,
+        clientLocation: finalAnswers.client_location,
+        timeline: finalAnswers.timeline,
+        caseStudyMode: mode ?? 'standard',
+        briefAnswers: {
+          problem: finalAnswers.problem,
+          what_delivered: finalAnswers.what_delivered,
+          what_changed: finalAnswers.what_changed,
+          before_state: finalAnswers.before_state,
+          tried_before: finalAnswers.tried_before,
+          key_business_change: finalAnswers.key_business_change,
+          expected_results_to_verify: finalAnswers.expected_results_to_verify,
+        },
+        implementationComponents,
+        metrics: finalMetrics.filter((m) => m.name.trim()),
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !Array.isArray(data.questions)) {
+      setError(data.error ?? 'Something went wrong — please try again.');
+      setLoading(false);
+      return;
+    }
+
+    setCampaignId(data.campaignId);
+    setMagicToken(data.magicToken);
+    setQuestions(data.questions);
+    setLoading(false);
+    setStep(2);
+  }
 
   async function handleBuilderNext() {
+    if (!current) return;
     if (!draft.trim() && !current.optional) return;
     const updated = { ...answers, [current.key]: draft.trim() };
     setAnswers(updated);
@@ -74,48 +178,25 @@ export default function NewCampaignPage() {
       return;
     }
 
-    // Brief complete — structure it + generate questions.
-    setLoading(true);
-    const res = await fetch('/api/campaigns', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clientName: updated.client_name,
-        clientIndustry: updated.client_industry,
-        clientSize: updated.client_size,
-        clientLocation: updated.client_location,
-        timeline: updated.timeline,
-        briefAnswers: {
-          problem: updated.problem,
-          what_delivered: updated.what_delivered,
-          what_changed: updated.what_changed,
-        },
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok || !Array.isArray(data.questions)) {
-      setError(data.error ?? 'Something went wrong — please try again.');
-      setLoading(false);
-      // Stay on the last question so they can resubmit.
-      setAnswers(answers);
-      setDraft(updated[current.key]);
+    // Premium has one more step (structured metrics) before submit.
+    if (isPremium) {
+      setBuilderStep((s) => s + 1);
       return;
     }
 
-    setCampaignId(data.campaignId);
-    setMagicToken(data.magicToken);
-    setQuestions(data.questions);
-    setLoading(false);
-    setStep(2);
+    await submitCampaign(updated, []);
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    // Enter submits short answers; Cmd/Ctrl+Enter submits long ones.
-    if (e.key === 'Enter' && (current.short || e.metaKey || e.ctrlKey)) {
+    // Enter submits short answers; Cmd/Ctrl+Enter submits long/list answers.
+    if (e.key === 'Enter' && (current?.short || e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       handleBuilderNext();
     }
+  }
+
+  function updateMetric(index: number, field: keyof MetricDraft, value: string) {
+    setMetrics((prev) => prev.map((m, i) => (i === index ? { ...m, [field]: value } : m)));
   }
 
   async function handleRegenerate(questionId: string) {
@@ -192,64 +273,182 @@ export default function NewCampaignPage() {
         })}
       </div>
 
-      {/* Step 1: Guided brief chat */}
+      {/* Step 1: depth mode → guided brief chat → (premium) structured metrics */}
       {step === 1 && (
         <div className="animate-fade-up">
           <p className="eyebrow">New campaign</p>
           <h1 className="mt-4 font-display text-[24px] font-semibold leading-tight tracking-[-0.02em]">
-            Tell us about the work
+            {mode ? 'Tell us about the work' : 'How deep should this go?'}
           </h1>
           <p className="mt-1.5 font-editorial italic text-[15px] text-ink-secondary">
-            A few quick questions — we&apos;ll turn them into the interview your client answers.
+            {mode
+              ? "A few quick questions — we'll turn them into the interview your client answers."
+              : 'Pick a depth. You can keep it light, or go long-form for a fuller story.'}
           </p>
 
-          {loading ? (
+          {/* Mode picker */}
+          {!mode && (
+            <div className="animate-fade-up mt-8 grid gap-4 sm:grid-cols-2">
+              {MODE_OPTIONS.map((opt) => {
+                const Icon = opt.icon;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => {
+                      setMode(opt.value);
+                      setBuilderStep(0);
+                      setError('');
+                    }}
+                    className="group flex flex-col rounded-[18px] border border-line bg-white p-6 text-left transition-colors hover:border-accent"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-accent">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <h3 className="mt-4 font-display text-[18px] font-semibold tracking-[-0.01em]">
+                      {opt.title}
+                    </h3>
+                    <p className="mt-1.5 text-[14px] leading-relaxed text-ink-secondary">
+                      {opt.blurb}
+                    </p>
+                    <span className="mt-4 font-mono text-[11.5px] uppercase tracking-[0.12em] text-ink-secondary">
+                      {opt.meta}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {mode && loading && (
             <p className="mt-12 text-center font-editorial italic text-[15px] text-ink-secondary">
               Writing your questions…
             </p>
-          ) : (
+          )}
+
+          {/* Guided question */}
+          {mode && !loading && current && (
             <div key={builderStep} className="animate-fade-up mt-10">
               <h2 className="font-display text-[22px] font-semibold leading-snug tracking-[-0.01em] text-ink">
                 {current.prompt}
               </h2>
               <div className="mt-5">
-              {current.short ? (
-                <Input
-                  value={draft}
-                  autoFocus
-                  placeholder={current.placeholder}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-              ) : (
-                <Textarea
-                  value={draft}
-                  rows={3}
-                  autoFocus
-                  placeholder={current.placeholder}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                />
-              )}
+                {current.short ? (
+                  <Input
+                    value={draft}
+                    autoFocus
+                    placeholder={current.placeholder}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                ) : (
+                  <Textarea
+                    value={draft}
+                    rows={current.inputStyle === 'list' ? 5 : 3}
+                    autoFocus
+                    placeholder={current.placeholder}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                  />
+                )}
+                {error && (
+                  <p className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">{error}</p>
+                )}
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="font-mono text-[12px] text-ink-secondary">
+                    {builderStep + 1} of {totalSteps}
+                  </span>
+                  <Button onClick={handleBuilderNext} disabled={!draft.trim() && !current.optional}>
+                    {isLastBuilder && !isPremium
+                      ? 'Generate questions'
+                      : current.optional && !draft.trim()
+                        ? 'Skip'
+                        : 'Next'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Premium: structured metrics editor */}
+          {mode && !loading && onMetricsStep && (
+            <div className="animate-fade-up mt-10">
+              <h2 className="font-display text-[22px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+                Any before / after numbers? (Optional)
+              </h2>
+              <p className="mt-1.5 text-[14px] leading-relaxed text-ink-secondary">
+                Add the metrics you believe moved. These are claims to verify — your client
+                confirms or corrects them in the interview.
+              </p>
+
+              <div className="mt-6 space-y-4">
+                {metrics.map((metric, index) => (
+                  <div key={index} className="rounded-[16px] border border-line bg-white p-4">
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={metric.name}
+                        placeholder="Metric (e.g. Followers, Revenue)"
+                        onChange={(e) => updateMetric(index, 'name', e.target.value)}
+                      />
+                      {metrics.length > 1 && (
+                        <button
+                          type="button"
+                          aria-label="Remove metric"
+                          onClick={() => setMetrics((prev) => prev.filter((_, i) => i !== index))}
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-ink-secondary transition-colors hover:bg-accent-soft hover:text-accent"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      <Input
+                        value={metric.before_value}
+                        placeholder="Before"
+                        onChange={(e) => updateMetric(index, 'before_value', e.target.value)}
+                      />
+                      <Input
+                        value={metric.after_value}
+                        placeholder="After"
+                        onChange={(e) => updateMetric(index, 'after_value', e.target.value)}
+                      />
+                      <Input
+                        value={metric.unit}
+                        placeholder="Unit"
+                        onChange={(e) => updateMetric(index, 'unit', e.target.value)}
+                      />
+                      <Input
+                        value={metric.timeframe}
+                        placeholder="Timeframe"
+                        onChange={(e) => updateMetric(index, 'timeframe', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setMetrics((prev) => [...prev, emptyMetric()])}
+                className="mt-4 inline-flex items-center gap-1.5 text-[14px] font-medium text-accent transition-opacity hover:opacity-80"
+              >
+                <Plus className="h-4 w-4" />
+                Add metric
+              </button>
+
               {error && (
-                <p className="mt-3 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">{error}</p>
+                <p className="mt-4 rounded-lg bg-accent-soft px-3 py-2 text-sm text-accent">{error}</p>
               )}
-              <div className="mt-3 flex items-center justify-between">
+
+              <div className="mt-6 flex items-center justify-between">
                 <span className="font-mono text-[12px] text-ink-secondary">
-                  {builderStep + 1} of {BUILDER_QUESTIONS.length}
+                  {totalSteps} of {totalSteps}
                 </span>
-                <Button
-                  onClick={handleBuilderNext}
-                  disabled={!draft.trim() && !current.optional}
-                >
-                  {isLastBuilder
-                    ? 'Generate questions'
-                    : current.optional && !draft.trim()
-                      ? 'Skip'
-                      : 'Next'}
+                <Button onClick={() => submitCampaign(answers, metrics)} disabled={loading}>
+                  Generate questions
                   <ArrowRight className="h-4 w-4" />
                 </Button>
-              </div>
               </div>
             </div>
           )}
