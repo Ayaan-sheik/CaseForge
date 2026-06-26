@@ -6,7 +6,8 @@ import type {
   StoryBlocks,
   StructuredMetric,
 } from '@/lib/types';
-import { generateText, parseJsonResponse } from './groq';
+import { parseJsonResponse } from './groq';
+import { runFinalSynthesis } from './synthesisRouter';
 
 const SYSTEM_PROMPT = `You are a meticulous case-study researcher. You read a client engagement's source data (provider context, the provider's brief, agency-entered metrics, and the client's interview transcript) and extract STRUCTURED STORY BLOCKS that a writer will later turn into a case study.
 
@@ -186,7 +187,7 @@ Extract the story blocks. Return ONLY a JSON object (no markdown, no preamble). 
 
 For metric_observations: include ONLY metrics the client actually mentioned in the transcript. Set client_stated=true when the client states/confirms the value; corrected=true (with the client's value) when they give a different number than the agency claimed. Do not list agency metrics the client never addressed.`;
 
-  const text = await generateText(SYSTEM_PROMPT, userPrompt, true, 'synthesis');
+  const { text } = await runFinalSynthesis(SYSTEM_PROMPT, userPrompt);
   const raw = parseJsonResponse<Partial<StoryBlocks>>(text);
   return normalize(raw);
 }
