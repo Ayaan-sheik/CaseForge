@@ -67,7 +67,7 @@ export async function decideFollowup(args: {
   if (!lastAnswer.trim()) return { probe: false, question: null };
 
   const covered = priorAnswers?.trim()
-    ? `\n\nAlready covered earlier in this interview (do NOT ask a follow-up that requests a number, metric, timeframe, name, or detail that already appears below — if the needed fact is already here, set probe=false):\n${priorAnswers.trim()}`
+    ? `\n\nFull Q&A history for this interview (every question asked and every answer given). Do NOT ask a follow-up that repeats or closely mirrors a question already asked, or that asks for a fact already present in any answer below — if the needed detail is already here, set probe=false:\n${priorAnswers.trim()}`
     : '';
 
   const isPremium = mode === 'premium_long_form';
@@ -112,4 +112,22 @@ Return ONLY JSON:
 
   const probe = Boolean(decision?.probe && decision?.question);
   return { probe, question: probe ? String(decision.question) : null };
+}
+
+/**
+ * Returns true if the full interview transcript already substantially answers
+ * the given core question — used to skip redundant core questions at runtime.
+ */
+export async function isCoreQuestionCovered(
+  question: string,
+  fullTranscript: string
+): Promise<boolean> {
+  if (!fullTranscript.trim()) return false;
+  const text = await generateText(
+    'You are reviewing a case study interview transcript.',
+    `Question: "${question}"\n\nInterview transcript so far:\n${fullTranscript}\n\nDoes the transcript already substantially answer this question — i.e., the client gave enough detail that asking it again would be redundant? Return ONLY JSON: { "covered": true|false }`,
+    true
+  ).catch(() => '{"covered":false}');
+  const result = parseJsonResponse<{ covered: boolean }>(text);
+  return Boolean(result?.covered);
 }

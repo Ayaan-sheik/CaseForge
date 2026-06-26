@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
-import { decideFollowup } from '@/lib/ai/interviewDirector';
+import { decideFollowup, isCoreQuestionCovered } from '@/lib/ai/interviewDirector';
 import { capsForMode, coreNumberFor, type TurnRow } from '@/lib/interview/turns';
 import type { AgencyContext, Campaign, Question } from '@/lib/types';
 
@@ -93,40 +93,70 @@ export async function POST(
   const rows = allTurns ?? [];
   const answered = rows.filter((r) => r.transcript_clean);
   const coreAsked = answered.filter((r) => !r.is_followup).length;
-  const currentCore = [...answered].reverse().find((r) => !r.is_followup);
-  const priorFollowups = currentCore
-    ? answered.filter((r) => r.is_followup && r.sequence > currentCore.sequence).length
-    : 0;
+  const totalFollowups = answered.filter((r) => r.is_followup).length;
   const maxSeq = rows.reduce((m, r) => Math.max(m, r.sequence), 0);
 
   const { maxTurns, maxFollowupsPerCore } = capsForMode(campaign.case_study_mode);
 
   let next: { text: string; isFollowup: boolean } | null = null;
 
+  // Full Q&A chain including the just-committed answer (so the AI sees every
+  // question text that has been asked, not just the answers).
+  const fullTranscript = answered
+    .map((r) => `Q: ${r.question_text}\nA: ${r.transcript_clean}`)
+    .join('\n\n');
+
   if (answered.length < maxTurns) {
-    let probe = { probe: false, question: null as string | null };
-    if (currentCore && priorFollowups < maxFollowupsPerCore) {
-      const context = await loadContext(supabase, campaign.creator_id);
-      const priorAnswers = answered
-        .filter((r) => r.sequence !== sequence)
-        .map((r) => `Q: ${r.question_text}\nA: ${r.transcript_clean}`)
-        .join('\n\n');
-      probe = await decideFollowup({
-        context,
-        brief: campaign.brief,
-        coreQuestion: currentCore.question_text ?? '',
-        lastAnswer: transcript,
-        priorFollowups,
-        priorAnswers,
-        mode: campaign.case_study_mode,
-        metrics: campaign.metrics,
-      }).catch(() => ({ probe: false, question: null }));
+    // Phase 1: ask all core questions before any follow-ups.
+    if (coreAsked < core.length) {
+      let nextCoreIndex = coreAsked;
+      while (nextCoreIndex < core.length) {
+        const covered = await isCoreQuestionCovered(
+          core[nextCoreIndex].text,
+          fullTranscript
+        ).catch(() => false);
+        if (!covered) break;
+        nextCoreIndex++;
+      }
+      if (nextCoreIndex < core.length) {
+        next = { text: core[nextCoreIndex].text, isFollowup: false };
+      }
     }
 
-    if (probe.probe && probe.question) {
-      next = { text: probe.question, isFollowup: true };
-    } else if (coreAsked < core.length) {
-      next = { text: core[coreAsked].text, isFollowup: false };
+    // Phase 2: after all cores are done (or all remaining covered), ask
+    // follow-ups. Iterate through core questions in order and take the first
+    // gap the AI identifies. totalFollowups acts as a global budget cap.
+    if (!next && totalFollowups < maxFollowupsPerCore) {
+      const context = await loadContext(supabase, campaign.creator_id);
+      for (const coreQ of core) {
+        const coreRow = answered.find(
+          (r) => !r.is_followup && r.question_text === coreQ.text
+        );
+        if (!coreRow) continue;
+
+        // Exclude this core's own row so its answer is the focused `lastAnswer`;
+        // all prior follow-up Q&A stays in priorAnswers for deduplication.
+        const priorAnswersForCore = answered
+          .filter((r) => r.sequence !== coreRow.sequence)
+          .map((r) => `Q: ${r.question_text}\nA: ${r.transcript_clean}`)
+          .join('\n\n');
+
+        const probe = await decideFollowup({
+          context,
+          brief: campaign.brief,
+          coreQuestion: coreQ.text,
+          lastAnswer: coreRow.transcript_clean ?? '',
+          priorFollowups: totalFollowups,
+          priorAnswers: priorAnswersForCore,
+          mode: campaign.case_study_mode,
+          metrics: campaign.metrics,
+        }).catch(() => ({ probe: false, question: null }));
+
+        if (probe.probe && probe.question) {
+          next = { text: probe.question, isFollowup: true };
+          break;
+        }
+      }
     }
   }
 
