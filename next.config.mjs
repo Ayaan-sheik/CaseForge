@@ -8,7 +8,6 @@ const nextConfig = {
       '@react-pdf/renderer',
       'puppeteer-core',
       'puppeteer',
-      '@sparticuz/chromium',
     ],
   },
 };

@@ -48,18 +48,17 @@ async function launchBrowser(): Promise<Browser> {
   const puppeteer = (await import('puppeteer-core')).default;
 
   if (isServerless()) {
-    const chromium = (await import('@sparticuz/chromium')).default;
-    return puppeteer.launch({
-      args: chromium.args,
-      executablePath: await chromium.executablePath(),
-      headless: true,
+    const token = process.env.BROWSERLESS_TOKEN;
+    if (!token) throw new Error('BROWSERLESS_TOKEN env var is not set');
+    return puppeteer.connect({
+      browserWSEndpoint: `wss://chrome.browserless.io?token=${token}`,
     });
   }
 
   const executablePath = await resolveLocalExecutablePath();
   return puppeteer.launch({
     args: ['--no-sandbox', '--font-render-hinting=none'],
-    headless: true,
+    headless: 'shell',
     // With no resolved path, puppeteer-core looks up an installed Chrome channel.
     ...(executablePath ? { executablePath } : { channel: 'chrome' }),
   });
