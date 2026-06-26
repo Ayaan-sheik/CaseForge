@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
 import { generateAndUploadBothPDFs } from '@/lib/pdf/generatePDF';
 import type { Output } from '@/lib/types';
 
-// The synthesize action awaits the full pipeline (LLM + PDF render + upload
-// + email), which exceeds Vercel's default function timeout.
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 async function requireOwnedCampaign(campaignId: string) {
   const supabase = createClient();
@@ -138,11 +137,10 @@ export async function POST(
     }
   }
 
-  try {
-    await synthesizeCaseStudy(params.campaignId);
-    return NextResponse.json({ success: true });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Synthesis failed';
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
+  waitUntil(
+    synthesizeCaseStudy(params.campaignId).catch((err) =>
+      console.error('Synthesis failed (outputs route):', err)
+    )
+  );
+  return NextResponse.json({ success: true });
 }

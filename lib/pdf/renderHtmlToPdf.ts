@@ -50,8 +50,9 @@ async function launchBrowser(): Promise<Browser> {
   if (isServerless()) {
     const token = process.env.BROWSERLESS_TOKEN;
     if (!token) throw new Error('BROWSERLESS_TOKEN env var is not set');
+    const host = process.env.BROWSERLESS_URL ?? 'chrome.browserless.io';
     return puppeteer.connect({
-      browserWSEndpoint: `wss://chrome.browserless.io?token=${token}`,
+      browserWSEndpoint: `wss://${host}?token=${token}`,
     });
   }
 

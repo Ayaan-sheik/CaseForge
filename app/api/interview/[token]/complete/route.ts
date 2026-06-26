@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/server';
 import { synthesizeCaseStudy } from '@/lib/ai/synthesizeCaseStudy';
 import type { Campaign } from '@/lib/types';
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 /**
  * POST /api/interview/[token]/complete
